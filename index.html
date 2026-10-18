@@ -344,6 +344,7 @@
       <div style="margin-top: 24px;">
         <h4 style="font-family: 'Cinzel', serif; color: var(--gold); margin-bottom: 8px;">Round Results</h4>
         
+        <!-- Animated Telemetry while unreleased -->
         <div id="pTelemetryBox" class="telemetry-container">
           <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--gold); margin-bottom: 8px;">
             <span>⚡ Live Incoming Vote Stream (Calculating...)</span>
@@ -352,6 +353,7 @@
           <div id="telemetryBarsList"></div>
         </div>
 
+        <!-- Official Aggregated Chart (ONLY counts real voter submissions) -->
         <div id="pOfficialResultsBox" class="card hidden" style="background: rgba(0,0,0,0.5); padding: 14px;">
           <div id="officialResultsList"></div>
         </div>
@@ -471,7 +473,6 @@
     ];
 
     let state = {
-      sessionId: "SESSION_" + Date.now(),
       round: "Round 1",
       isOpen: false,
       isPublished: false,
@@ -488,15 +489,12 @@
     let telemetryInterval = null;
 
     function startRealtimeSync() {
-      // 1. Listen to state
+      // 1. Listen to poll state
       db.collection("quiz_poll").doc("state").onSnapshot(doc => {
         if (doc.exists) {
           state = doc.data();
-          if (!state.sessionId) {
-            state.sessionId = "SESSION_" + Date.now();
-          }
-          filterAndRenderVotes();
           renderUI();
+          renderOfficialResults();
           if (!document.getElementById("hostDashboardBox").classList.contains("hidden")) {
             renderHostDashboard();
           }
@@ -505,25 +503,15 @@
         }
       });
 
-      // 2. Direct clean collection for votes
-      db.collection("poll_votes").onSnapshot(snapshot => {
-        const allDocs = [];
+      // 2. Direct clean listener for all votes
+      db.collection("poll_votes").orderBy("timestamp", "desc").onSnapshot(snapshot => {
+        localVotes = [];
         snapshot.forEach(doc => {
-          const data = doc.data();
-          data._id = doc.id;
-          allDocs.push(data);
+          localVotes.push(doc.data());
         });
-        window._rawDbVotes = allDocs;
-        filterAndRenderVotes();
+        renderAuditLogs();
+        renderOfficialResults();
       });
-    }
-
-    // Filter strictly to current session: isolates past test answers immediately
-    function filterAndRenderVotes() {
-      if (!window._rawDbVotes) return;
-      localVotes = window._rawDbVotes.filter(v => v.sessionId === state.sessionId);
-      renderAuditLogs();
-      renderOfficialResults();
     }
 
     function switchPortal(portal) {
@@ -622,7 +610,7 @@
       document.getElementById("pInstructionText").textContent = state.allowMultiple ? 
         "Select one or more choices for this round:" : "Select your single choice for this round:";
 
-      // Countdown logic
+      // Timer countdown
       clearInterval(countdownInterval);
       if (state.isOpen && state.roundEndAt) {
         countdownInterval = setInterval(() => {
@@ -640,6 +628,7 @@
         document.getElementById("pTimerText").textContent = "Timer: --";
       }
 
+      // Show results ONLY if published, otherwise show telemetry
       if (state.isPublished) {
         document.getElementById("pTelemetryBox").classList.add("hidden");
         document.getElementById("pOfficialResultsBox").classList.remove("hidden");
@@ -678,7 +667,6 @@
       }
 
       db.collection("poll_votes").add({
-        sessionId: state.sessionId,
         round: state.round,
         name: name,
         whatsapp: whatsapp,
@@ -694,17 +682,19 @@
       });
     }
 
+    // STRICT ACTUAL RESULTS ONLY (No random numbers)
     function renderOfficialResults() {
       const container = document.getElementById("officialResultsList");
+      if (!container) return;
       container.innerHTML = "";
       
-      // Strict: Only count votes from current round and current session
+      // Filter votes that match the current active round
       const roundVotes = localVotes.filter(v => v.round === state.round);
       const counts = {};
       (state.options || defaultOptions).forEach(o => counts[o.name] = 0);
       
       roundVotes.forEach(v => {
-        if (v.picks) {
+        if (v.picks && Array.isArray(v.picks)) {
           v.picks.forEach(p => {
             if (counts[p] !== undefined) counts[p]++;
           });
@@ -732,10 +722,12 @@
       });
     }
 
+    // Isolated Telemetry Animation ONLY (Never touches official results)
     function initTelemetry() {
       const list = document.getElementById("telemetryBarsList");
       clearInterval(telemetryInterval);
       telemetryInterval = setInterval(() => {
+        if (state.isPublished) return; // Stop if official results are active
         list.innerHTML = "";
         (state.options || defaultOptions).forEach(o => {
           const rand = Math.floor(Math.random() * 70) + 15;
@@ -777,20 +769,21 @@
       });
     }
 
-    // Completely purges all past votes across the database and starts a new session key
-    async function purgeAllVotesAndNewSession() {
-      const newSessionId = "SESSION_" + Date.now();
+    // Direct Database Purge: Deletes every single document in poll_votes
+    async function purgeAllVotesFromFirestore() {
       try {
         const snap = await db.collection("poll_votes").get();
         const batch = db.batch();
-        snap.docs.forEach(d => batch.delete(d.ref));
+        snap.docs.forEach(doc => {
+          batch.delete(doc.ref);
+        });
         await batch.commit();
       } catch (err) {
-        console.warn("Purge batch noticed:", err);
+        console.error("Purge error:", err);
       }
       localVotes = [];
-      window._rawDbVotes = [];
-      return newSessionId;
+      renderAuditLogs();
+      renderOfficialResults();
     }
 
     // Host Controls
@@ -806,7 +799,6 @@
       db.collection("quiz_poll").doc("state").set(state);
     }
 
-    // Advancing round leaves past rounds in the audit log for the active session
     function hostAdvanceRound() {
       const match = (state.round || "").match(/\d+/);
       const nextNum = match ? parseInt(match[0]) + 1 : 2;
@@ -817,30 +809,24 @@
       db.collection("quiz_poll").doc("state").set(state);
     }
 
-    // Resetting session completely wipes database and assigns brand new session
     async function hostResetEntireSession() {
-      if (confirm("Reset to Round 1 and COMPLETELY PURGE all prior votes?")) {
-        const freshId = await purgeAllVotesAndNewSession();
-        state.sessionId = freshId;
+      if (confirm("Reset to Round 1 and PURGE all prior votes from the log?")) {
+        await purgeAllVotesFromFirestore();
         state.round = "Round 1";
         state.isOpen = false;
         state.isPublished = false;
         state.sessionEnded = false;
         await db.collection("quiz_poll").doc("state").set(state);
-        filterAndRenderVotes();
-        alert("Session refreshed! Audit log and results have been completely purged.");
+        alert("Session refreshed! Audit log and results have been completely wiped.");
       }
     }
 
-    // Ending session wipes database and locks voting
     async function hostEndEntireSession() {
-      if (confirm("End entire session and PURGE ALL votes?")) {
-        const freshId = await purgeAllVotesAndNewSession();
-        state.sessionId = freshId;
+      if (confirm("End entire session and PURGE ALL votes from the log?")) {
+        await purgeAllVotesFromFirestore();
         state.isOpen = false;
         state.sessionEnded = true;
         await db.collection("quiz_poll").doc("state").set(state);
-        filterAndRenderVotes();
         alert("Session ended and all logs purged clean.");
       }
     }
