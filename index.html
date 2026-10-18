@@ -104,6 +104,7 @@
     }
     .status-open { background: rgba(42, 157, 143, 0.25); border: 1px solid var(--accent-green); color: #52b788; }
     .status-closed { background: rgba(230, 57, 70, 0.25); border: 1px solid var(--accent-red); color: #ff6b6b; }
+    .status-ended { background: rgba(133, 0, 0, 0.35); border: 1px solid #ff4444; color: #ff8888; }
     .pulse-dot { width: 10px; height: 10px; border-radius: 50%; background: currentColor; animation: pulse 1.2s infinite; }
     @keyframes pulse { 0% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.3; } }
 
@@ -258,6 +259,7 @@
     .btn-green { background: #2a9d8f; color: #fff; }
     .btn-red { background: #e63946; color: #fff; }
     .btn-gold { background: #f4c430; color: #000; }
+    .btn-blue { background: #1d3557; color: #fff; border: 1px solid #457b9d; }
     .btn-dark { background: #331515; color: #fff; border: 1px solid #772b2b; }
 
     table {
@@ -295,7 +297,7 @@
       </div>
     </div>
 
-    <!-- Theatrical Hero Banner (Fixed Aspect ratio) -->
+    <!-- Theatrical Hero Banner -->
     <div class="hero-banner-frame">
       <img src="GOATed Villains of All time 16_9 ratio.png" alt="GOATed Villains of All Time" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1200';">
     </div>
@@ -342,7 +344,6 @@
       <div style="margin-top: 24px;">
         <h4 style="font-family: 'Cinzel', serif; color: var(--gold); margin-bottom: 8px;">Round Results</h4>
         
-        <!-- Live fluctuating bars when results unreleased -->
         <div id="pTelemetryBox" class="telemetry-container">
           <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--gold); margin-bottom: 8px;">
             <span>⚡ Live Incoming Vote Stream (Calculating...)</span>
@@ -351,7 +352,6 @@
           <div id="telemetryBarsList"></div>
         </div>
 
-        <!-- Official Aggregated Chart (Shown after Host publishes) -->
         <div id="pOfficialResultsBox" class="card hidden" style="background: rgba(0,0,0,0.5); padding: 14px;">
           <div id="officialResultsList"></div>
         </div>
@@ -388,9 +388,10 @@
         <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; padding: 12px; background: rgba(0,0,0,0.4); border-radius: 8px; border: 1px solid #4a2222;">
           <button id="hStartRoundBtn" class="host-btn btn-green" onclick="hostToggleRound(true)">▶ Open / Start Round</button>
           <button id="hStopRoundBtn" class="host-btn btn-red" onclick="hostToggleRound(false)">⏹ Hard Close Round</button>
-          <button id="hPublishBtn" class="host-btn btn-gold" onclick="hostPublishResults()">📢 Publish Results to Voters</button>
+          <button id="hPublishBtn" class="host-btn btn-gold" onclick="hostPublishResults()">📢 Publish Results</button>
           <button class="host-btn btn-dark" onclick="hostAdvanceRound()">⏩ Next Round</button>
-          <button class="host-btn btn-red" style="margin-left: auto;" onclick="hostEndEntireSession()">⚠ End Entire Session</button>
+          <button class="host-btn btn-blue" onclick="hostResetEntireSession()">🔄 Reset / New Game</button>
+          <button class="host-btn btn-red" style="margin-left: auto;" onclick="hostEndEntireSession()">⚠ End Session</button>
         </div>
 
         <!-- Round Configurations -->
@@ -412,8 +413,8 @@
           </div>
         </div>
 
-        <!-- Options Configuration (Persistent Pool) -->
-        <h4 style="font-family: 'Cinzel', serif; color: var(--gold); margin-bottom: 8px;">Active Options Pool (6 to 10 candidates)</h4>
+        <!-- Options Configuration -->
+        <h4 style="font-family: 'Cinzel', serif; color: var(--gold); margin-bottom: 8px;">Active Options Pool (Persistent Pool)</h4>
         <div id="hOptionsList" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; margin-bottom: 20px;"></div>
 
         <!-- Voter Audit Logs (Host Only) -->
@@ -444,9 +445,7 @@
 
   </div>
 
-  <!-- Realtime Scripting Engine -->
   <script>
-    // 1. Firebase Initialization with your project
     const firebaseConfig = {
       apiKey: "AIzaSyBGvhD7sWYx774cjL8cAn7K7onxO-JEEI0",
       authDomain: "bollywood-bazaar.firebaseapp.com",
@@ -462,7 +461,6 @@
     const HOST_EMAIL = "yashbangani.ai@gmail.com";
     const HOST_PASSCODE = "060925";
 
-    // 2. Default Villains Pool (Persistent)
     const defaultOptions = [
       { id: 1, name: "Majnu Bhai", img: "Majnu Bhai.jpeg" },
       { id: 2, name: "Gaitonde", img: "Gaitonde.jpeg" },
@@ -472,7 +470,6 @@
       { id: 6, name: "Crime Master Gogo", img: "Crime Master Gogo.jpeg" }
     ];
 
-    // Local app state
     let state = {
       round: "Round 1",
       isOpen: false,
@@ -491,20 +488,19 @@
     let audioCtx = null;
     let droneOsc = null;
 
-    // 3. Firestore Realtime Listeners
     function startRealtimeSync() {
-      // Listen to poll state
       db.collection("quiz_poll").doc("state").onSnapshot(doc => {
         if (doc.exists) {
           state = doc.data();
           renderUI();
+          if (!document.getElementById("hostDashboardBox").classList.contains("hidden")) {
+            renderHostDashboard();
+          }
         } else {
-          // Initialize in database if empty
           db.collection("quiz_poll").doc("state").set(state);
         }
       });
 
-      // Listen to live votes
       db.collection("quiz_poll").doc("data").collection("votes").orderBy("timestamp", "desc").onSnapshot(snapshot => {
         localVotes = [];
         snapshot.forEach(doc => localVotes.push(doc.data()));
@@ -513,7 +509,6 @@
       });
     }
 
-    // 4. Portal Views Switcher
     function switchPortal(portal) {
       if (portal === 'participant') {
         document.getElementById("participantView").classList.remove("hidden");
@@ -524,7 +519,6 @@
       }
     }
 
-    // 5. Host Gate Authentication
     function verifyHostLogin() {
       const email = document.getElementById("hostEmailInput").value.trim().toLowerCase();
       const code = document.getElementById("hostPasscodeInput").value.trim();
@@ -534,7 +528,7 @@
         document.getElementById("hostDashboardBox").classList.remove("hidden");
         renderHostDashboard();
       } else {
-        alert("Authorization Denied! Only yashbangani.ai@gmail.com with the valid passcode can unlock the console.");
+        alert("Authorization Denied! Enter valid email and passcode.");
       }
     }
 
@@ -544,45 +538,17 @@
       document.getElementById("hostPasscodeInput").value = "";
     }
 
-    // 6. UI Rendering (Participant & Host)
     function renderUI() {
-      // Participant header & badge
       document.getElementById("pRoundTitle").textContent = state.round;
       const statusBadge = document.getElementById("pStatusBadge");
       const statusText = document.getElementById("pStatusText");
       const submitBtn = document.getElementById("pSubmitBtn");
 
-      if (state.sessionEnded) {
-        statusBadge.className = "status-badge status-closed";
-        statusText.textContent = "SESSION CONCLUDED";
-        submitBtn.disabled = true;
-        submitBtn.textContent = "EVENT FINISHED";
-        stopSuspenseSound();
-        return;
-      }
-
-      if (state.isOpen) {
-        statusBadge.className = "status-badge status-open";
-        statusText.textContent = "VOTING ACTIVE";
-        submitBtn.disabled = false;
-        submitBtn.textContent = "CAST OFFICIAL VOTE";
-        startSuspenseSound();
-      } else {
-        statusBadge.className = "status-badge status-closed";
-        statusText.textContent = "VOTING CLOSED";
-        submitBtn.disabled = true;
-        submitBtn.textContent = "VOTING CLOSED";
-        stopSuspenseSound();
-      }
-
-      document.getElementById("pInstructionText").textContent = state.allowMultiple ? 
-        "Select one or more choices for this round:" : "Select your single choice for this round:";
-
-      // Populate Team Dropdown
+      // Populate Team Dropdown always so it never vanishes
       const teamDropdown = document.getElementById("voterTeamDropdown");
       const currentTeam = teamDropdown.value;
       teamDropdown.innerHTML = `<option value="">-- Choose Your Team --</option>`;
-      state.options.forEach((opt, idx) => {
+      (state.options || defaultOptions).forEach((opt, idx) => {
         const optionEl = document.createElement("option");
         optionEl.value = opt.name;
         optionEl.textContent = `Team ${idx + 1}: ${opt.name}`;
@@ -593,7 +559,7 @@
       // Render Participant Option Cards
       const grid = document.getElementById("pOptionsGrid");
       grid.innerHTML = "";
-      state.options.forEach(opt => {
+      (state.options || defaultOptions).forEach(opt => {
         const isSelected = selectedPicks.includes(opt.name);
         const card = document.createElement("div");
         card.className = `option-card ${isSelected ? 'selected' : ''}`;
@@ -614,7 +580,35 @@
         grid.appendChild(card);
       });
 
-      // Handle Timer
+      // Handle session state
+      if (state.sessionEnded) {
+        statusBadge.className = "status-badge status-ended";
+        statusText.textContent = "SESSION CONCLUDED";
+        submitBtn.disabled = true;
+        submitBtn.textContent = "SESSION CONCLUDED";
+        stopSuspenseSound();
+        document.getElementById("pTimerText").textContent = "Timer: --";
+        return;
+      }
+
+      if (state.isOpen) {
+        statusBadge.className = "status-badge status-open";
+        statusText.textContent = "VOTING ACTIVE";
+        submitBtn.disabled = false;
+        submitBtn.textContent = "CAST OFFICIAL VOTE";
+        startSuspenseSound();
+      } else {
+        statusBadge.className = "status-badge status-closed";
+        statusText.textContent = "VOTING CLOSED";
+        submitBtn.disabled = true;
+        submitBtn.textContent = "VOTING CLOSED";
+        stopSuspenseSound();
+      }
+
+      document.getElementById("pInstructionText").textContent = state.allowMultiple ? 
+        "Select one or more choices for this round:" : "Select your single choice for this round:";
+
+      // Timer calculation
       clearInterval(countdownInterval);
       if (state.isOpen && state.roundEndAt) {
         countdownInterval = setInterval(() => {
@@ -623,7 +617,7 @@
           document.getElementById("pTimerText").textContent = `Timer: ${left}s`;
           if (left <= 0) {
             clearInterval(countdownInterval);
-            if (document.getElementById("hostDashboardBox").classList.contains("hidden") === false) {
+            if (!document.getElementById("hostDashboardBox").classList.contains("hidden")) {
               hostToggleRound(false);
             }
           }
@@ -632,7 +626,6 @@
         document.getElementById("pTimerText").textContent = "Timer: --";
       }
 
-      // Handle Results & Telemetry
       if (state.isPublished) {
         document.getElementById("pTelemetryBox").classList.add("hidden");
         document.getElementById("pOfficialResultsBox").classList.remove("hidden");
@@ -643,7 +636,7 @@
     }
 
     function toggleSelectPick(name) {
-      if (!state.isOpen) return;
+      if (!state.isOpen || state.sessionEnded) return;
       if (state.allowMultiple) {
         if (selectedPicks.includes(name)) {
           selectedPicks = selectedPicks.filter(item => item !== name);
@@ -656,22 +649,20 @@
       renderUI();
     }
 
-    // 7. Participant Submit Vote
     function submitParticipantVote() {
-      if (!state.isOpen) return alert("Voting lines are closed!");
+      if (!state.isOpen || state.sessionEnded) return alert("Voting lines are closed!");
       
       const name = document.getElementById("voterName").value.trim();
       const whatsapp = document.getElementById("voterWhatsApp").value.trim();
       const team = document.getElementById("voterTeamDropdown").value;
 
       if (!name || !whatsapp || !team) {
-        return alert("Please fill in Name, WhatsApp number, and choose your Team from the dropdown!");
+        return alert("Please enter Name, WhatsApp number, and choose your Team from the dropdown!");
       }
       if (selectedPicks.length === 0) {
         return alert("Please select at least one option card before submitting!");
       }
 
-      // Record to Firestore
       db.collection("quiz_poll").doc("data").collection("votes").add({
         round: state.round,
         name: name,
@@ -688,25 +679,26 @@
       });
     }
 
-    // 8. Results & Telemetry
     function renderOfficialResults() {
       const container = document.getElementById("officialResultsList");
       container.innerHTML = "";
       
       const roundVotes = localVotes.filter(v => v.round === state.round);
       const counts = {};
-      state.options.forEach(o => counts[o.name] = 0);
+      (state.options || defaultOptions).forEach(o => counts[o.name] = 0);
       
       roundVotes.forEach(v => {
-        v.picks.forEach(p => {
-          if (counts[p] !== undefined) counts[p]++;
-        });
+        if (v.picks) {
+          v.picks.forEach(p => {
+            if (counts[p] !== undefined) counts[p]++;
+          });
+        }
       });
 
       const totalPicks = Object.values(counts).reduce((a, b) => a + b, 0);
 
-      state.options.forEach(o => {
-        const val = counts[o.name];
+      (state.options || defaultOptions).forEach(o => {
+        const val = counts[o.name] || 0;
         const pct = totalPicks > 0 ? Math.round((val / totalPicks) * 100) : 0;
         
         const row = document.createElement("div");
@@ -724,13 +716,12 @@
       });
     }
 
-    // Randomized fluctuating telemetry bars (Rule 5)
     function initTelemetry() {
       const list = document.getElementById("telemetryBarsList");
       clearInterval(telemetryInterval);
       telemetryInterval = setInterval(() => {
         list.innerHTML = "";
-        state.options.forEach(o => {
+        (state.options || defaultOptions).forEach(o => {
           const rand = Math.floor(Math.random() * 70) + 15;
           const div = document.createElement("div");
           div.className = "telemetry-bar-wrap";
@@ -748,7 +739,6 @@
       }, 1000);
     }
 
-    // 9. Web Audio Suspense Tension Loop (Rule 12)
     function startSuspenseSound() {
       if (audioCtx) return;
       try {
@@ -758,8 +748,8 @@
         const gainNode = audioCtx.createGain();
 
         droneOsc.type = 'sawtooth';
-        droneOsc.frequency.setValueAtTime(55, audioCtx.currentTime); // Low A drone
-        gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
+        droneOsc.frequency.setValueAtTime(55, audioCtx.currentTime);
+        gainNode.gain.setValueAtTime(0.04, audioCtx.currentTime);
 
         droneOsc.connect(gainNode);
         gainNode.connect(audioCtx.destination);
@@ -778,7 +768,7 @@
       }
     }
 
-    // 10. Host Controls
+    // Host Functions
     function renderHostDashboard() {
       document.getElementById("hRoundTitleInput").value = state.round;
       document.getElementById("hTimerInput").value = state.timerSeconds;
@@ -786,7 +776,7 @@
       
       const optContainer = document.getElementById("hOptionsList");
       optContainer.innerHTML = "";
-      state.options.forEach((opt, idx) => {
+      (state.options || defaultOptions).forEach((opt, idx) => {
         const card = document.createElement("div");
         card.style.background = "#1b0a0a";
         card.style.border = "1px solid #4a2222";
@@ -802,6 +792,7 @@
     }
 
     function hostToggleRound(open) {
+      state.sessionEnded = false; // Always clear frozen flag when opening
       state.isOpen = open;
       state.roundEndAt = open ? (Date.now() + (state.timerSeconds * 1000)) : null;
       db.collection("quiz_poll").doc("state").set(state);
@@ -818,11 +809,22 @@
       state.round = `Round ${nextNum}`;
       state.isOpen = false;
       state.isPublished = false;
+      state.sessionEnded = false; // Unfreeze
       db.collection("quiz_poll").doc("state").set(state);
     }
 
+    function hostResetEntireSession() {
+      if (confirm("Reset to Round 1 and unfreeze the session for a brand new game?")) {
+        state.round = "Round 1";
+        state.isOpen = false;
+        state.isPublished = false;
+        state.sessionEnded = false;
+        db.collection("quiz_poll").doc("state").set(state);
+      }
+    }
+
     function hostEndEntireSession() {
-      if (confirm("Are you sure you want to end the entire voting session?")) {
+      if (confirm("End the entire voting session? Participants will see 'SESSION CONCLUDED'.")) {
         state.isOpen = false;
         state.sessionEnded = true;
         db.collection("quiz_poll").doc("state").set(state);
@@ -853,7 +855,7 @@
           <td>${v.name}</td>
           <td>${v.whatsapp}</td>
           <td>${v.team}</td>
-          <td style="color:var(--gold); font-weight:700;">${v.picks.join(", ")}</td>
+          <td style="color:var(--gold); font-weight:700;">${(v.picks || []).join(", ")}</td>
           <td style="color:#aaa;">${timeStr}</td>
         `;
         tbody.appendChild(tr);
@@ -864,7 +866,7 @@
       if (localVotes.length === 0) return alert("No votes to export!");
       let csv = "Round,Name,WhatsApp,Team,Picks,Timestamp\n";
       localVotes.forEach(v => {
-        csv += `"${v.round}","${v.name}","${v.whatsapp}","${v.team}","${v.picks.join(';')}",${new Date(v.timestamp).toISOString()}\n`;
+        csv += `"${v.round}","${v.name}","${v.whatsapp}","${v.team}","${(v.picks || []).join(';')}",${new Date(v.timestamp).toISOString()}\n`;
       });
       const blob = new Blob([csv], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
@@ -874,7 +876,6 @@
       a.click();
     }
 
-    // Boot
     window.onload = () => {
       startRealtimeSync();
       initTelemetry();
