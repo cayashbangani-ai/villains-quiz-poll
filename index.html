@@ -3,533 +3,467 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GOATed Villains of All Time - Live Quiz Arena</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <title>GOATed Villains Quiz Arena</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
   <style>
     :root {
-      --gold-primary: #f59e0b;
-      --gold-glow: rgba(245, 158, 11, 0.45);
-      --crimson-dark: #140204;
-      --crimson-stage: #260508;
+      --gold: #f4c430;
+      --gold-dark: #b8860b;
+      --gold-glow: rgba(244, 196, 48, 0.45);
+      --crimson: #850000;
+      --crimson-dark: #3a0000;
+      --bg-dark: #0a0606;
+      --card-bg: rgba(26, 12, 12, 0.85);
+      --card-border: rgba(244, 196, 48, 0.3);
+      --text: #f5eedc;
+      --accent-red: #e63946;
+      --accent-green: #2a9d8f;
     }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: 'Inter', sans-serif;
-      background-color: var(--crimson-dark);
-      background-image: 
-        radial-gradient(circle at 50% 0%, rgba(185, 28, 28, 0.45) 0%, transparent 65%),
-        radial-gradient(circle at 10% 90%, rgba(217, 119, 6, 0.18) 0%, transparent 50%),
-        radial-gradient(circle at 90% 90%, rgba(153, 27, 27, 0.28) 0%, transparent 50%);
-      color: #f3f4f6;
+      background: radial-gradient(circle at 50% 20%, #2b0606 0%, #0c0404 60%, #030101 100%);
+      color: var(--text);
+      font-family: 'Montserrat', sans-serif;
       min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 14px;
     }
 
-    .font-cinzel { font-family: 'Cinzel', serif; }
-    .font-timer { font-family: 'Orbitron', monospace; }
-
-    .theatre-card {
-      background: linear-gradient(145deg, rgba(32, 6, 10, 0.94), rgba(16, 2, 4, 0.98));
-      border: 1px solid rgba(245, 158, 11, 0.28);
-      box-shadow: 0 12px 36px -6px rgba(0, 0, 0, 0.85), 0 0 24px rgba(180, 83, 9, 0.18);
+    .app-container {
+      width: 100%;
+      max-width: 1050px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
     }
 
-    .theatre-card-active {
-      border: 2px solid #f59e0b;
-      box-shadow: 0 0 30px rgba(245, 158, 11, 0.45);
+    .hero-banner-frame {
+      width: 100%;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 2px solid var(--gold);
+      box-shadow: 0 0 25px rgba(244, 196, 48, 0.25);
+      background: #000;
+      max-height: 380px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .hero-banner-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
     }
 
-    .gold-gradient-text {
-      background: linear-gradient(135deg, #fef08a 0%, #f59e0b 50%, #b45309 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+    .nav-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 10px 16px;
+    }
+    .nav-btn {
+      background: linear-gradient(135deg, var(--gold-dark), var(--gold));
+      color: #000;
+      font-weight: 700;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+    .nav-btn:hover {
+      box-shadow: 0 0 12px var(--gold-glow);
+      transform: scale(1.02);
     }
 
-    /* Randomized fluctuating pulse bars for live unreleased votes */
-    @keyframes pulseFluctuate {
-      0% { transform: scaleX(0.24); opacity: 0.7; }
-      50% { transform: scaleX(0.88); opacity: 1; filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.9)); }
-      100% { transform: scaleX(0.45); opacity: 0.75; }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 6px 14px;
+      border-radius: 20px;
+    }
+    .status-open { background: rgba(42, 157, 143, 0.25); border: 1px solid var(--accent-green); color: #52b788; }
+    .status-closed { background: rgba(230, 57, 70, 0.25); border: 1px solid var(--accent-red); color: #ff6b6b; }
+    .pulse-dot { width: 10px; height: 10px; border-radius: 50%; background: currentColor; animation: pulse 1.2s infinite; }
+    @keyframes pulse { 0% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.3; } }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+    .card-title {
+      font-family: 'Cinzel', serif;
+      font-size: 1.4rem;
+      color: var(--gold);
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
-    .bar-fluctuate-1 { animation: pulseFluctuate 1.7s ease-in-out infinite alternate; }
-    .bar-fluctuate-2 { animation: pulseFluctuate 2.3s ease-in-out infinite alternate-reverse; }
-    .bar-fluctuate-3 { animation: pulseFluctuate 1.4s ease-in-out infinite alternate; }
-    .bar-fluctuate-4 { animation: pulseFluctuate 2.9s ease-in-out infinite alternate-reverse; }
-    .bar-fluctuate-5 { animation: pulseFluctuate 2.1s ease-in-out infinite alternate; }
-    .bar-fluctuate-6 { animation: pulseFluctuate 2.5s ease-in-out infinite alternate-reverse; }
+    .form-group {
+      margin-bottom: 14px;
+    }
+    .form-group label {
+      display: block;
+      font-weight: 600;
+      font-size: 0.85rem;
+      margin-bottom: 6px;
+      color: #dfd7c5;
+    }
+    .form-control {
+      width: 100%;
+      background: #140808;
+      border: 1px solid #5a3825;
+      color: #fff;
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 0.95rem;
+    }
+    .form-control:focus {
+      border-color: var(--gold);
+      outline: none;
+      box-shadow: 0 0 8px var(--gold-glow);
+    }
 
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #150305; }
-    ::-webkit-scrollbar-thumb { background: #b45309; border-radius: 4px; }
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 14px;
+      margin: 16px 0;
+    }
+    .option-card {
+      background: #150909;
+      border: 2px solid #4a2222;
+      border-radius: 10px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+    .option-card:hover {
+      border-color: var(--gold);
+      box-shadow: 0 0 12px rgba(244, 196, 48, 0.3);
+    }
+    .option-card.selected {
+      border-color: var(--gold);
+      background: rgba(244, 196, 48, 0.15);
+      box-shadow: 0 0 15px var(--gold-glow);
+    }
+    .option-thumb {
+      width: 100%;
+      height: 140px;
+      border-radius: 6px;
+      object-fit: cover;
+      margin-bottom: 8px;
+      border: 1px solid #331515;
+      background: #000;
+    }
+    .option-name {
+      font-weight: 700;
+      font-size: 0.9rem;
+      text-align: center;
+      color: #f1e3c8;
+    }
+
+    .telemetry-container {
+      margin: 16px 0;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 14px;
+      border-radius: 8px;
+      border: 1px dashed var(--gold-dark);
+    }
+    .telemetry-bar-wrap {
+      margin-bottom: 10px;
+    }
+    .telemetry-bar-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      margin-bottom: 4px;
+    }
+    .telemetry-bar-bg {
+      height: 12px;
+      background: #2b1111;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .telemetry-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #c1121f, var(--gold));
+      transition: width 0.4s ease;
+    }
+
+    .btn-submit {
+      width: 100%;
+      background: linear-gradient(135deg, #b8860b, #f4c430);
+      color: #000;
+      font-family: 'Cinzel', serif;
+      font-size: 1.15rem;
+      font-weight: 900;
+      padding: 14px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(244, 196, 48, 0.3);
+      transition: all 0.2s;
+    }
+    .btn-submit:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(244, 196, 48, 0.5);
+    }
+    .btn-submit:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      filter: grayscale(1);
+    }
+
+    .host-btn {
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-green { background: #2a9d8f; color: #fff; }
+    .btn-red { background: #e63946; color: #fff; }
+    .btn-gold { background: #f4c430; color: #000; }
+    .btn-dark { background: #331515; color: #fff; border: 1px solid #772b2b; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 0.85rem;
+    }
+    th, td {
+      border: 1px solid #4a2222;
+      padding: 8px 10px;
+      text-align: left;
+    }
+    th {
+      background: #250b0b;
+      color: var(--gold);
+    }
+    tr:nth-child(even) { background: rgba(255, 255, 255, 0.02); }
+
+    .hidden { display: none !important; }
   </style>
 </head>
-<body class="p-3 md:p-6 pb-24">
+<body>
 
-  <!-- TOP BAR: Navigation, View Toggle & Session State -->
-  <header class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4 mb-6 px-4 py-3 theatre-card rounded-2xl">
-    <div class="flex items-center space-x-3">
-      <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30">
-        <span class="w-2 h-2 rounded-full mr-2 bg-amber-400 animate-pulse"></span>
-        Quiz Stage Polling
-      </span>
-      <span id="headerRoundBadge" class="text-sm font-semibold text-zinc-300">Round 1</span>
-    </div>
+  <div class="app-container">
 
-    <!-- View Switcher -->
-    <div class="flex items-center space-x-2 bg-black/50 p-1 rounded-xl border border-zinc-800">
-      <button id="viewParticipantBtn" onclick="switchView('participant')" class="px-4 py-1.5 text-xs md:text-sm font-bold rounded-lg transition-all bg-amber-500 text-black shadow-lg">
-        Participant Portal
-      </button>
-      <button id="viewHostBtn" onclick="switchView('host')" class="px-4 py-1.5 text-xs md:text-sm font-bold rounded-lg text-zinc-400 hover:text-amber-300 transition-all">
-        Host / Admin Panel
-      </button>
-    </div>
-  </header>
-
-  <!-- ============================================================ -->
-  <!-- HERO SHOWCASE BANNER (Dedicated Frame, No Full-Page Camouflage) -->
-  <!-- ============================================================ -->
-  <section class="max-w-6xl mx-auto mb-8">
-    <div class="theatre-card rounded-3xl p-3 md:p-5 relative overflow-hidden border border-amber-500/40">
-      <div class="absolute -top-12 -left-12 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
-      <div class="absolute -bottom-12 -right-12 w-48 h-48 bg-red-600/20 rounded-full blur-3xl pointer-events-none"></div>
-
-      <!-- Hero Poster Frame -->
-      <div class="relative w-full rounded-2xl overflow-hidden border border-amber-500/30 shadow-2xl bg-black">
-        <img 
-          id="heroPosterImg"
-          src="GOATed%20Villains%20of%20All%20time%2016_9%20ratio.png" 
-          alt="GOATed Villains of All Time" 
-          onerror="handleHeroImageFallback(this)"
-          class="w-full h-44 sm:h-64 md:h-80 lg:h-96 object-cover object-center transform transition duration-500 hover:scale-[1.01]"
-        />
-        <div id="heroFallbackPlaceholder" class="hidden w-full h-44 sm:h-64 md:h-80 flex flex-col items-center justify-center bg-gradient-to-br from-amber-950/60 via-black to-red-950/60 text-center p-6">
-          <span class="text-4xl mb-2">🎭</span>
-          <h1 class="text-2xl sm:text-4xl font-extrabold font-cinzel gold-gradient-text tracking-widest uppercase">GOATed Villains of All Time</h1>
-          <p class="text-xs sm:text-sm text-amber-200/80 mt-1 font-serif">Official Quiz Arena Polling Portal</p>
-        </div>
-        <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/30 pointer-events-none"></div>
-        <div class="absolute bottom-2 left-4 right-4 flex items-center justify-between text-xs md:text-sm text-amber-200/90 font-cinzel tracking-wider">
-          <span class="flex items-center gap-2">
-            <span class="text-amber-400">★</span> 
-            <span>OFFICIAL LIVE ARENA</span>
-          </span>
-          <span class="hidden sm:inline-block text-zinc-300 font-sans text-xs">Rule: Options remain persistent throughout all rounds</span>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============================================================ -->
-  <!-- AUDIO SUSPENSE SOUNDTRACK BAR                                -->
-  <!-- ============================================================ -->
-  <div class="max-w-6xl mx-auto mb-6 flex items-center justify-between theatre-card px-5 py-3 rounded-2xl border-amber-500/20">
-    <div class="flex items-center space-x-3">
-      <div id="soundIcon" class="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400">
-        🔊
-      </div>
+    <!-- Top Navigation -->
+    <div class="nav-bar">
       <div>
-        <p class="text-xs font-bold text-amber-300">Stage Suspense Drone</p>
-        <p id="soundStatusText" class="text-[11px] text-zinc-400">Synthesizes tension tones automatically while voting lines are open</p>
+        <span style="font-family: 'Cinzel', serif; font-size: 1.1rem; color: var(--gold); font-weight: 700;">GOATed VILLAINS POLL</span>
       </div>
-    </div>
-    <button id="toggleAudioBtn" onclick="toggleAudio()" class="px-3 py-1.5 text-xs font-bold rounded-lg border border-amber-500/50 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20">
-      Enable Audio
-    </button>
-  </div>
-
-  <!-- ============================================================ -->
-  <!-- VIEW 1: PARTICIPANT PORTAL                                   -->
-  <!-- ============================================================ -->
-  <main id="participantPortal" class="max-w-6xl mx-auto space-y-6">
-
-    <!-- Active Stage Banner & Timer -->
-    <div class="theatre-card p-5 md:p-6 rounded-2xl">
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div class="flex items-center gap-2">
-            <span id="roundStatusIndicator" class="inline-block w-3 h-3 rounded-full bg-red-500"></span>
-            <h2 id="participantRoundTitle" class="text-2xl font-bold font-cinzel text-white">Round 1: Cast Your Votes</h2>
-          </div>
-          <p id="selectionModeDescription" class="text-xs text-amber-300/80 mt-1">Single Choice Mode: Select exactly 1 villain</p>
-        </div>
-
-        <!-- Timer Display -->
-        <div class="flex items-center gap-3 bg-black/60 px-5 py-3 rounded-xl border border-amber-500/30">
-          <div class="text-right">
-            <div class="text-[10px] uppercase font-bold text-amber-400 tracking-wider">Remaining Time</div>
-            <div id="countdownTimer" class="font-timer text-3xl font-black text-amber-300">00:00</div>
-          </div>
-          <span class="text-2xl">⏳</span>
-        </div>
+      <div style="display: flex; gap: 8px;">
+        <button class="nav-btn" onclick="switchPortal('participant')">Participant Portal</button>
+        <button class="nav-btn" style="background: transparent; color: var(--gold); border: 1px solid var(--gold);" onclick="switchPortal('host')">Host Console</button>
       </div>
     </div>
 
-    <!-- Closed Session Alert -->
-    <div id="sessionClosedNotice" class="hidden theatre-card p-8 rounded-2xl text-center border-red-500/40">
-      <div class="text-5xl mb-3">🎬</div>
-      <h3 class="text-2xl font-bold font-cinzel text-red-400">The Entire Voting Session Has Ended</h3>
-      <p class="text-zinc-400 text-sm mt-1">The host has closed this quiz session. Thank you for voting!</p>
+    <!-- Theatrical Hero Banner (Fixed Aspect ratio) -->
+    <div class="hero-banner-frame">
+      <img src="GOATed Villains of All time 16_9 ratio.png" alt="GOATed Villains of All Time" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1200';">
     </div>
 
-    <!-- Voter Registration and Ballot -->
-    <div id="votingInteractionWrapper" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-      
-      <!-- Participant Credentials Form -->
-      <div class="lg:col-span-4 theatre-card p-5 rounded-2xl h-fit space-y-4">
-        <h3 class="text-lg font-bold font-cinzel text-amber-300 border-b border-amber-500/20 pb-2">
-          1. Voter Credentials
-        </h3>
-        <p class="text-xs text-zinc-400">All fields are mandatory to validate your ballot.</p>
-        
-        <div>
-          <label class="block text-xs font-semibold text-zinc-300 mb-1">Your Full Name *</label>
-          <input type="text" id="voterName" placeholder="e.g., Rajesh Malhotra" class="w-full bg-black/60 border border-zinc-700 focus:border-amber-400 rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
+    <!-- ================= PARTICIPANT VIEW ================= -->
+    <div id="participantView" class="card">
+      <div class="card-title">
+        <span id="pRoundTitle">Round 1</span>
+        <div id="pStatusBadge" class="status-badge status-closed">
+          <div class="pulse-dot"></div>
+          <span id="pStatusText">VOTING CLOSED</span>
         </div>
+      </div>
 
-        <div>
-          <label class="block text-xs font-semibold text-zinc-300 mb-1">WhatsApp Number *</label>
-          <input type="tel" id="voterWhatsapp" placeholder="e.g., 9876543210" class="w-full bg-black/60 border border-zinc-700 focus:border-amber-400 rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <span id="pInstructionText" style="font-size: 0.9rem; color: #d4c5a9;">Select your choice from the candidates below.</span>
+        <span id="pTimerText" style="font-weight: 800; color: var(--gold); font-size: 1.1rem;">Timer: --</span>
+      </div>
+
+      <!-- Voter ID Form -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-bottom: 14px;">
+        <div class="form-group">
+          <label>Full Name *</label>
+          <input type="text" id="voterName" class="form-control" placeholder="Enter your name">
         </div>
-
-        <div>
-          <label class="block text-xs font-semibold text-zinc-300 mb-1">Team Name (Choose from Poll Options) *</label>
-          <select id="voterTeam" class="w-full bg-black/60 border border-zinc-700 focus:border-amber-400 rounded-xl px-3 py-2.5 text-sm text-amber-200 focus:outline-none appearance-none cursor-pointer">
-            <option value="" disabled selected>Select Your Assigned Team...</option>
+        <div class="form-group">
+          <label>WhatsApp Number *</label>
+          <input type="tel" id="voterWhatsApp" class="form-control" placeholder="e.g. 9876543210">
+        </div>
+        <div class="form-group">
+          <label>Select Your Team *</label>
+          <select id="voterTeamDropdown" class="form-control">
+            <option value="">-- Choose Your Team --</option>
           </select>
         </div>
-
-        <div id="voterFeedback" class="text-xs font-medium hidden"></div>
-
-        <button id="castVoteBtn" onclick="submitParticipantVote()" class="w-full mt-2 py-3 px-4 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:brightness-110 text-black font-extrabold text-sm rounded-xl uppercase tracking-wider shadow-lg transition-transform active:scale-95">
-          Submit Vote
-        </button>
       </div>
 
-      <!-- Voting Options Grid -->
-      <div class="lg:col-span-8 theatre-card p-5 rounded-2xl">
-        <div class="flex items-center justify-between border-b border-amber-500/20 pb-2 mb-4">
-          <h3 class="text-lg font-bold font-cinzel text-amber-300">
-            2. Choose Your Option(s)
-          </h3>
-          <span id="ballotGuidance" class="text-xs text-zinc-400">Select one villain</span>
-        </div>
+      <!-- Candidate Selection Cards -->
+      <div id="pOptionsGrid" class="options-grid"></div>
 
-        <div id="optionsContainer" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <!-- Dynamically populated via JS -->
-        </div>
-      </div>
-    </div>
+      <button id="pSubmitBtn" class="btn-submit" onclick="submitParticipantVote()" disabled>VOTING CLOSED</button>
 
-    <!-- Live Telemetry / Polling Results -->
-    <div class="theatre-card p-6 rounded-2xl mt-8">
-      <div class="flex items-center justify-between border-b border-amber-500/20 pb-3 mb-5">
-        <div>
-          <h3 class="text-xl font-bold font-cinzel text-white">Live Polling Telemetry</h3>
-          <p class="text-xs text-zinc-400">Anonymous aggregated numbers (voter identities remain private)</p>
-        </div>
-        <span id="resultsStageTag" class="px-3 py-1 rounded-full text-xs font-bold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30">
-          Voting Active
-        </span>
-      </div>
-
-      <!-- Unreleased Voting Simulation Bars -->
-      <div id="unreleasedSimulationView" class="space-y-4">
-        <div class="flex items-center justify-between p-3 bg-amber-500/10 rounded-xl border border-amber-500/30 text-amber-200 text-xs">
-          <span>⚡ Live vote tabulation in progress...</span>
-          <span class="animate-pulse">Awaiting Host release</span>
-        </div>
-        <div id="fluctuatingBarsList" class="space-y-3 pt-2">
-          <!-- Fluctuation bars rendered by JS -->
-        </div>
-      </div>
-
-      <!-- Published Official Results Chart -->
-      <div id="officialResultsView" class="hidden space-y-4">
-        <div class="p-3 bg-emerald-950/40 border border-emerald-500/40 rounded-xl text-emerald-300 text-xs flex items-center justify-between">
-          <span>✓ Official Host-Verified Tally for this round</span>
-          <span id="totalRoundVotesCount" class="font-bold">Total Votes: 0</span>
-        </div>
-        <div id="officialResultsBars" class="space-y-3">
-          <!-- Verified counts rendered by JS -->
-        </div>
-
-        <!-- Cumulative Rounds Toggle -->
-        <div class="mt-6 pt-4 border-t border-zinc-800">
-          <button onclick="toggleCumulativeResults()" class="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1">
-            <span>📊</span> <span id="toggleCumText">Show Cumulative Results Across All Completed Rounds</span>
-          </button>
-          <div id="cumulativeResultsSection" class="hidden mt-4 space-y-3 p-4 bg-black/40 rounded-xl border border-zinc-800">
-            <h4 class="text-xs uppercase tracking-wider font-bold text-amber-300 mb-2">Overall Cumulative Standing</h4>
-            <div id="cumulativeBars" class="space-y-2"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </main>
-
-  <!-- ============================================================ -->
-  <!-- VIEW 2: HOST / ADMIN DASHBOARD (SECURITY GATED)             -->
-  <!-- ============================================================ -->
-  <main id="hostPortal" class="max-w-6xl mx-auto space-y-6 hidden">
-    
-    <!-- HOST EMAIL VERIFICATION GATE -->
-    <div id="hostAuthGate" class="theatre-card p-6 md:p-10 rounded-3xl max-w-xl mx-auto text-center border-amber-500/50 shadow-2xl">
-      <div class="w-16 h-16 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-3xl mx-auto mb-4 border border-amber-500/40">
-        🔐
-      </div>
-      <h2 class="text-2xl font-bold font-cinzel text-white mb-2">Host Access Security Check</h2>
-      <p class="text-xs text-zinc-300 mb-6">
-        Host privileges are reserved strictly for <strong class="text-amber-300">yashbangani.ai@gmail.com</strong>.
-      </p>
-
-      <!-- Email Verification Step -->
-      <div id="authEmailStep" class="space-y-4 text-left">
-        <div>
-          <label class="block text-xs font-bold text-zinc-300 mb-1">Host Email Address</label>
-          <input type="email" id="hostEmailInput" value="yashbangani.ai@gmail.com" class="w-full bg-black/60 border border-zinc-700 focus:border-amber-400 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none">
-        </div>
-        <button onclick="requestHostCode()" class="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-sm rounded-xl uppercase tracking-wider shadow-lg">
-          Send Confirmation Check Mail
-        </button>
-        <div id="authEmailError" class="text-xs text-red-400 hidden mt-1"></div>
-      </div>
-
-      <!-- Code Confirmation Step -->
-      <div id="authCodeStep" class="space-y-4 text-left hidden">
-        <div class="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl">
-          <p class="text-xs text-amber-200">
-            📧 A verification dispatch landed for <strong>yashbangani.ai@gmail.com</strong>!
-          </p>
-          <p class="text-[11px] text-zinc-400 mt-1">
-            (Confirmation Code Token: <strong id="simulatedTokenDisplay" class="text-amber-400 font-mono tracking-widest text-sm"></strong>)
-          </p>
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-zinc-300 mb-1">Enter 6-Digit Mail Confirmation Code</label>
-          <input type="text" id="hostCodeInput" maxlength="6" placeholder="123456" class="w-full bg-black/60 border border-zinc-700 focus:border-amber-400 text-center font-timer text-lg tracking-widest rounded-xl px-4 py-2.5 text-white focus:outline-none">
-        </div>
-        <button onclick="verifyHostCode()" class="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-sm rounded-xl uppercase tracking-wider shadow-lg">
-          Accord Confirmation & Unlock Console
-        </button>
-        <div id="authCodeError" class="text-xs text-red-400 hidden mt-1"></div>
-      </div>
-    </div>
-
-    <!-- HOST CONTROL PANEL -->
-    <div id="hostDashboardPanel" class="hidden space-y-6">
-
-      <!-- Host Header -->
-      <div class="theatre-card p-5 rounded-2xl flex flex-wrap items-center justify-between gap-4 border-amber-500/40">
-        <div>
-          <span class="text-xs text-amber-400 font-bold uppercase tracking-wider">Host Status: Authenticated (yashbangani.ai@gmail.com)</span>
-          <h2 class="text-xl font-bold font-cinzel text-white">Master Stage Director Console</h2>
-        </div>
-        <div class="flex items-center gap-2">
-          <button onclick="lockHostConsole()" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700">
-            Lock Console
-          </button>
-        </div>
-      </div>
-
-      <!-- ========================================================= -->
-      <!-- PRE-LOADING & PRESET CONFIGURATION MANAGER                -->
-      <!-- ========================================================= -->
-      <div class="theatre-card p-6 rounded-2xl space-y-4 border-amber-500/50 bg-gradient-to-r from-amber-950/20 via-black to-red-950/20">
-        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-amber-500/20 pb-3">
-          <div>
-            <h3 class="text-lg font-bold font-cinzel text-amber-300 flex items-center gap-2">
-              <span>⚡</span> Pre-Load Poll Questions & Preset Manager
-            </h3>
-            <p class="text-xs text-zinc-400">Pre-configure options, images, and rounds before the quiz show. Everything saves directly to your browser.</p>
-          </div>
-          <span class="text-xs font-bold px-3 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full">
-            Pre-Load Ready
-          </span>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-          <button onclick="saveShowSetupToStorage()" class="p-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl shadow uppercase tracking-wider flex items-center justify-center gap-2">
-            💾 Save Setup To Storage
-          </button>
-          <button onclick="loadBollywoodPreset()" class="p-3 bg-zinc-800 hover:bg-zinc-700 text-amber-300 font-bold text-xs rounded-xl border border-amber-500/30 shadow flex items-center justify-center gap-2">
-            🎬 Load Bollywood Villains Preset
-          </button>
-          <button onclick="exportSetupJSON()" class="p-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold text-xs rounded-xl border border-zinc-700 shadow flex items-center justify-center gap-2">
-            📥 Export Config (JSON)
-          </button>
-          <label class="p-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold text-xs rounded-xl border border-zinc-700 shadow flex items-center justify-center gap-2 cursor-pointer">
-            📤 Import Config (JSON)
-            <input type="file" id="importJsonFileInput" accept=".json" onchange="importSetupJSON(event)" class="hidden">
-          </label>
-        </div>
-
-        <!-- Optional Hero Banner Uploader -->
-        <div class="p-3 bg-black/40 border border-zinc-800 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div>
-            <span class="font-bold text-amber-300">Custom Show Banner (Optional):</span>
-            <span class="text-zinc-400 ml-1">Upload a hero image directly from your local computer</span>
-          </div>
-          <label class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg cursor-pointer font-semibold">
-            Choose Banner File
-            <input type="file" accept="image/*" onchange="handleHeroBannerUpload(event)" class="hidden">
-          </label>
-        </div>
-      </div>
-
-      <!-- Live Round Execution Controls -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <!-- Results or Telemetry -->
+      <div style="margin-top: 24px;">
+        <h4 style="font-family: 'Cinzel', serif; color: var(--gold); margin-bottom: 8px;">Round Results</h4>
         
-        <!-- Column 1: Round Execution -->
-        <div class="theatre-card p-5 rounded-2xl space-y-3">
-          <h4 class="text-sm font-bold text-amber-300 font-cinzel uppercase tracking-wider">Round Execution</h4>
-          <p class="text-xs text-zinc-400">Controls the current round timer and voter lines.</p>
-          
-          <div class="space-y-2 pt-2">
-            <button id="openRoundBtn" onclick="hostOpenRound()" class="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow uppercase tracking-wider">
-              ▶ Open / Start Round
-            </button>
-            <button id="hardCloseRoundBtn" onclick="hostHardCloseRound()" class="w-full py-2.5 px-3 bg-rose-700 hover:bg-rose-600 text-white font-bold text-xs rounded-xl shadow uppercase tracking-wider">
-              ⏹ Hard Close Round
-            </button>
-            <button onclick="hostAdvanceNextRound()" class="w-full py-2 px-3 bg-zinc-800 hover:bg-zinc-700 text-amber-300 text-xs font-semibold rounded-xl border border-zinc-700">
-              ⏭ Next Round (Same Persistent Options)
-            </button>
+        <!-- Live fluctuating bars when results unreleased -->
+        <div id="pTelemetryBox" class="telemetry-container">
+          <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--gold); margin-bottom: 8px;">
+            <span>⚡ Live Incoming Vote Stream (Calculating...)</span>
+            <span>Active Sync</span>
           </div>
+          <div id="telemetryBarsList"></div>
         </div>
 
-        <!-- Column 2: Results Broadcasting -->
-        <div class="theatre-card p-5 rounded-2xl space-y-3">
-          <h4 class="text-sm font-bold text-amber-300 font-cinzel uppercase tracking-wider">Results Broadcasting</h4>
-          <p class="text-xs text-zinc-400">Toggle public tally reveal for participants.</p>
-          
-          <div class="space-y-2 pt-2">
-            <button onclick="hostPublishResults()" class="w-full py-2.5 px-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl shadow uppercase tracking-wider">
-              📢 Publish Round Results
-            </button>
-            <button onclick="hostHideResults()" class="w-full py-2 px-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold rounded-xl border border-zinc-700">
-              🙈 Mask / Return to Fluctuating Bars
-            </button>
-          </div>
-        </div>
-
-        <!-- Column 3: Full Session Termination -->
-        <div class="theatre-card p-5 rounded-2xl space-y-3 border-red-500/40">
-          <h4 class="text-sm font-bold text-red-400 font-cinzel uppercase tracking-wider">Master Session End</h4>
-          <p class="text-xs text-zinc-400">Ends the entire game and unlocks option resets.</p>
-          
-          <div class="pt-2">
-            <button onclick="hostEndEntireSession()" class="w-full py-3 px-3 bg-red-700 hover:bg-red-600 text-white font-extrabold text-xs rounded-xl shadow-lg uppercase tracking-wider">
-              🛑 End Entire Voting Session
-            </button>
-            <p class="text-[10px] text-zinc-400 mt-2">
-              Note: Options remain immutable until this button is pressed.
-            </p>
-          </div>
+        <!-- Official Aggregated Chart (Shown after Host publishes) -->
+        <div id="pOfficialResultsBox" class="card hidden" style="background: rgba(0,0,0,0.5); padding: 14px;">
+          <div id="officialResultsList"></div>
         </div>
       </div>
+    </div>
 
-      <!-- Host Configuration Settings (Persistent across rounds) -->
-      <div class="theatre-card p-6 rounded-2xl space-y-4">
-        <div class="flex flex-wrap items-center justify-between border-b border-amber-500/20 pb-3">
-          <div>
-            <h3 class="text-lg font-bold font-cinzel text-amber-300">Poll Configuration & Persistent Pool</h3>
-            <p class="text-xs text-zinc-400">Options set here remain locked across rounds until the session is ended.</p>
-          </div>
-          <span id="configLockStatus" class="text-xs font-bold px-3 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full">
-            Options Active (6 to 10)
-          </span>
+    <!-- ================= HOST VIEW ================= -->
+    <div id="hostView" class="card hidden">
+
+      <!-- Host Login Gate -->
+      <div id="hostGateBox">
+        <div class="card-title">Host Security Clearance</div>
+        <p style="font-size: 0.9rem; margin-bottom: 14px; color: #caa;">Restricted console. Only authorized show hosts can unlock stage controls.</p>
+        
+        <div class="form-group">
+          <label>Host Email Address *</label>
+          <input type="email" id="hostEmailInput" class="form-control" placeholder="yashbangani.ai@gmail.com">
+        </div>
+        <div class="form-group">
+          <label>Passcode *</label>
+          <input type="password" id="hostPasscodeInput" class="form-control" placeholder="Enter 6-digit passcode">
+        </div>
+        <button class="nav-btn" onclick="verifyHostLogin()">Unlock Host Console</button>
+      </div>
+
+      <!-- Host Dashboard (Unlocked) -->
+      <div id="hostDashboardBox" class="hidden">
+        <div class="card-title">
+          <span>Master Stage Director Console</span>
+          <button class="host-btn btn-dark" onclick="lockHostConsole()">Lock Console</button>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label class="block text-xs font-semibold text-zinc-300 mb-1">Round Identifier / Title</label>
-            <input type="text" id="hostRoundTitleInput" value="Round 1" class="w-full bg-black/60 border border-zinc-700 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-white">
+        <!-- Controls Bar -->
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; padding: 12px; background: rgba(0,0,0,0.4); border-radius: 8px; border: 1px solid #4a2222;">
+          <button id="hStartRoundBtn" class="host-btn btn-green" onclick="hostToggleRound(true)">▶ Open / Start Round</button>
+          <button id="hStopRoundBtn" class="host-btn btn-red" onclick="hostToggleRound(false)">⏹ Hard Close Round</button>
+          <button id="hPublishBtn" class="host-btn btn-gold" onclick="hostPublishResults()">📢 Publish Results to Voters</button>
+          <button class="host-btn btn-dark" onclick="hostAdvanceRound()">⏩ Next Round</button>
+          <button class="host-btn btn-red" style="margin-left: auto;" onclick="hostEndEntireSession()">⚠ End Entire Session</button>
+        </div>
+
+        <!-- Round Configurations -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px;">
+          <div class="form-group">
+            <label>Round Title / Number</label>
+            <input type="text" id="hRoundTitleInput" class="form-control" onchange="hostUpdateRoundTitle(this.value)">
           </div>
-          <div>
-            <label class="block text-xs font-semibold text-zinc-300 mb-1">Round Timer (Seconds)</label>
-            <input type="number" id="hostTimerDuration" value="45" min="10" max="600" class="w-full bg-black/60 border border-zinc-700 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-white">
+          <div class="form-group">
+            <label>Round Timer (seconds)</label>
+            <input type="number" id="hTimerInput" class="form-control" min="10" max="600" value="60" onchange="hostUpdateTimer(this.value)">
           </div>
-          <div>
-            <label class="block text-xs font-semibold text-zinc-300 mb-1">Voting Mode</label>
-            <select id="hostMultipleChoiceToggle" class="w-full bg-black/60 border border-zinc-700 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-white">
-              <option value="single">Single Choice (1 option per participant)</option>
-              <option value="multiple">Multiple Choice (Multiple options permitted)</option>
+          <div class="form-group">
+            <label>Selection Mode</label>
+            <select id="hModeSelect" class="form-control" onchange="hostUpdateMode(this.value)">
+              <option value="single">Single Choice (1 pick)</option>
+              <option value="multiple">Multiple Choice (Unlimited picks)</option>
             </select>
           </div>
         </div>
 
-        <!-- Options Customizer (6 to 10 options with local computer image upload) -->
-        <div class="pt-3">
-          <div class="flex items-center justify-between mb-3">
-            <div>
-              <h4 class="text-xs font-bold uppercase tracking-wider text-amber-300">Active Option Cards (Minimum 6, Maximum 10)</h4>
-              <p class="text-[11px] text-zinc-400">Upload images straight from your computer using the "Choose Local Image" button.</p>
-            </div>
-            <div class="flex gap-2">
-              <button onclick="hostAddOption()" id="addOptBtn" class="px-3 py-1 text-xs bg-amber-500/20 border border-amber-500/40 text-amber-300 rounded-lg hover:bg-amber-500/30 font-semibold">
-                + Add Option
-              </button>
-              <button onclick="hostRemoveOption()" id="remOptBtn" class="px-3 py-1 text-xs bg-red-500/20 border border-red-500/40 text-red-300 rounded-lg hover:bg-red-500/30 font-semibold">
-                - Remove Option
-              </button>
-            </div>
-          </div>
+        <!-- Options Configuration (Persistent Pool) -->
+        <h4 style="font-family: 'Cinzel', serif; color: var(--gold); margin-bottom: 8px;">Active Options Pool (6 to 10 candidates)</h4>
+        <div id="hOptionsList" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; margin-bottom: 20px;"></div>
 
-          <div id="hostOptionsConfigList" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            <!-- Dynamically populated option inputs -->
-          </div>
+        <!-- Voter Audit Logs (Host Only) -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 24px;">
+          <h4 style="font-family: 'Cinzel', serif; color: var(--gold);">Confidential Voter Audit Log (<span id="hVoterCount">0</span> votes)</h4>
+          <button class="host-btn btn-dark" onclick="exportVotesCSV()">📥 Export CSV</button>
         </div>
-      </div>
-
-      <!-- Confidential Auditor Voter Logs (Host Only) -->
-      <div class="theatre-card p-6 rounded-2xl space-y-4">
-        <div class="flex items-center justify-between border-b border-amber-500/20 pb-3">
-          <div>
-            <h3 class="text-lg font-bold font-cinzel text-amber-300">Host Auditor Logs (Confidential)</h3>
-            <p class="text-xs text-zinc-400">Full identity tracking: Name, WhatsApp No, Team, Round, and Option.</p>
-          </div>
-          <button onclick="exportVotesCSV()" class="px-3 py-1.5 text-xs bg-zinc-800 text-amber-300 border border-zinc-700 rounded-lg hover:bg-zinc-700 font-semibold">
-            Export CSV
-          </button>
-        </div>
-
-        <div class="overflow-x-auto max-h-80">
-          <table class="w-full text-left text-xs">
-            <thead class="bg-black/60 text-amber-300 uppercase tracking-wider border-b border-zinc-800">
+        
+        <div style="overflow-x: auto; max-height: 280px;">
+          <table>
+            <thead>
               <tr>
-                <th class="p-3">#</th>
-                <th class="p-3">Round</th>
-                <th class="p-3">Voter Name</th>
-                <th class="p-3">WhatsApp No</th>
-                <th class="p-3">Team Name</th>
-                <th class="p-3">Voted Option</th>
-                <th class="p-3">Timestamp</th>
+                <th>Round</th>
+                <th>Name</th>
+                <th>WhatsApp</th>
+                <th>Team</th>
+                <th>Selected Choice(s)</th>
+                <th>Timestamp</th>
               </tr>
             </thead>
-            <tbody id="voterAuditTableBody" class="divide-y divide-zinc-800/60 text-zinc-300">
-              <tr>
-                <td colspan="7" class="p-4 text-center text-zinc-500">No votes logged in the arena yet.</td>
-              </tr>
+            <tbody id="hAuditTableBody">
+              <tr><td colspan="6" style="text-align:center; color:#888;">No votes cast yet.</td></tr>
             </tbody>
           </table>
         </div>
       </div>
     </div>
-  </main>
 
-  <!-- Notification Toast -->
-  <div id="toastNotification" class="fixed bottom-6 right-6 z-50 transform translate-y-24 opacity-0 transition-all duration-300 px-5 py-3 rounded-xl theatre-card border-amber-500/50 text-xs font-bold text-amber-200 shadow-2xl">
-    Notification
   </div>
 
+  <!-- Realtime Scripting Engine -->
   <script>
-    // Default initial villain lineup
-    const defaultVillains = [
+    // 1. Firebase Initialization with your project
+    const firebaseConfig = {
+      apiKey: "AIzaSyBGvhD7sWYx774cjL8cAn7K7onxO-JEEI0",
+      authDomain: "bollywood-bazaar.firebaseapp.com",
+      projectId: "bollywood-bazaar",
+      storageBucket: "bollywood-bazaar.firebasestorage.app",
+      messagingSenderId: "716220195726",
+      appId: "1:716220195726:web:13ca6d83a2deeb9a78fadf"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const HOST_EMAIL = "yashbangani.ai@gmail.com";
+    const HOST_PASSCODE = "060925";
+
+    // 2. Default Villains Pool (Persistent)
+    const defaultOptions = [
       { id: 1, name: "Majnu Bhai", img: "Majnu Bhai.jpeg" },
       { id: 2, name: "Gaitonde", img: "Gaitonde.jpeg" },
       { id: 3, name: "Rehman Dakait", img: "Rehman Dakait.jpeg" },
@@ -538,963 +472,412 @@
       { id: 6, name: "Crime Master Gogo", img: "Crime Master Gogo.jpeg" }
     ];
 
-    // Core Quiz State object
-    let quizState = {
-      sessionActive: true,
-      currentRound: "Round 1",
-      roundOpen: false,
-      resultsPublished: false,
-      timerSeconds: 45,
+    // Local app state
+    let state = {
+      round: "Round 1",
+      isOpen: false,
+      isPublished: false,
       allowMultiple: false,
-      options: [...defaultVillains],
-      votes: [], // Format: { id, round, name, whatsapp, team, choice, time }
-      customHeroBanner: null
+      timerSeconds: 60,
+      roundEndAt: null,
+      options: [...defaultOptions],
+      sessionEnded: false
     };
 
-    // Host Authentication State
-    let isHostAuthenticated = false;
-    let expectedHostCode = "";
-    const AUTHORIZED_HOST_EMAIL = "yashbangani.ai@gmail.com";
-
-    // Audio & Timer References
+    let selectedPicks = [];
+    let localVotes = [];
     let countdownInterval = null;
+    let telemetryInterval = null;
     let audioCtx = null;
-    let tensionDroneOsc = null;
-    let tensionDroneGain = null;
-    let tensionSubOsc = null;
-    let tensionSubGain = null;
-    let tensionLfo = null;
-    let tensionTickInterval = null;
-    let isAudioActive = false;
+    let droneOsc = null;
 
-    function loadState() {
-      try {
-        const stored = localStorage.getItem("goated_villains_quiz_state");
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          quizState = { ...quizState, ...parsed };
-        }
-      } catch (err) {
-        console.warn("Could not load from localStorage:", err);
-      }
-    }
-
-    function saveState() {
-      try {
-        localStorage.setItem("goated_villains_quiz_state", JSON.stringify(quizState));
-      } catch (err) {
-        console.warn("Could not save to localStorage:", err);
-      }
-    }
-
-    loadState();
-
-    function showToast(message, isError = false) {
-      const toast = document.getElementById("toastNotification");
-      if (!toast) return;
-      toast.innerText = message;
-      toast.className = `fixed bottom-6 right-6 z-50 transform transition-all duration-300 px-5 py-3 rounded-xl theatre-card border text-xs font-bold shadow-2xl ${
-        isError ? "border-red-500 text-red-300 bg-red-950/90" : "border-amber-500/50 text-amber-200 bg-black/90"
-      }`;
-      toast.classList.remove("translate-y-24", "opacity-0");
-      setTimeout(() => {
-        toast.classList.add("translate-y-24", "opacity-0");
-      }, 3200);
-    }
-
-    function handleHeroImageFallback(imgEl) {
-      if (imgEl) imgEl.classList.add("hidden");
-      const placeholder = document.getElementById("heroFallbackPlaceholder");
-      if (placeholder) placeholder.classList.remove("hidden");
-    }
-
-    function switchView(viewName) {
-      const participantPortal = document.getElementById("participantPortal");
-      const hostPortal = document.getElementById("hostPortal");
-      const pBtn = document.getElementById("viewParticipantBtn");
-      const hBtn = document.getElementById("viewHostBtn");
-
-      if (viewName === "participant") {
-        participantPortal.classList.remove("hidden");
-        hostPortal.classList.add("hidden");
-        pBtn.className = "px-4 py-1.5 text-xs md:text-sm font-bold rounded-lg transition-all bg-amber-500 text-black shadow-lg";
-        hBtn.className = "px-4 py-1.5 text-xs md:text-sm font-bold rounded-lg text-zinc-400 hover:text-amber-300 transition-all";
-        renderParticipantBallot();
-        renderResults();
-      } else {
-        participantPortal.classList.add("hidden");
-        hostPortal.classList.remove("hidden");
-        hBtn.className = "px-4 py-1.5 text-xs md:text-sm font-bold rounded-lg transition-all bg-amber-500 text-black shadow-lg";
-        pBtn.className = "px-4 py-1.5 text-xs md:text-sm font-bold rounded-lg text-zinc-400 hover:text-amber-300 transition-all";
-
-        if (isHostAuthenticated) {
-          document.getElementById("hostAuthGate").classList.add("hidden");
-          document.getElementById("hostDashboardPanel").classList.remove("hidden");
-          renderHostOptionsInputs();
-          renderAuditTable();
+    // 3. Firestore Realtime Listeners
+    function startRealtimeSync() {
+      // Listen to poll state
+      db.collection("quiz_poll").doc("state").onSnapshot(doc => {
+        if (doc.exists) {
+          state = doc.data();
+          renderUI();
         } else {
-          document.getElementById("hostAuthGate").classList.remove("hidden");
-          document.getElementById("hostDashboardPanel").classList.add("hidden");
+          // Initialize in database if empty
+          db.collection("quiz_poll").doc("state").set(state);
         }
-      }
+      });
+
+      // Listen to live votes
+      db.collection("quiz_poll").doc("data").collection("votes").orderBy("timestamp", "desc").onSnapshot(snapshot => {
+        localVotes = [];
+        snapshot.forEach(doc => localVotes.push(doc.data()));
+        renderAuditLogs();
+        renderOfficialResults();
+      });
     }
 
-    function updateStageStateBadges() {
-      const headerBadge = document.getElementById("headerRoundBadge");
-      const partRoundTitle = document.getElementById("participantRoundTitle");
-      const statusInd = document.getElementById("roundStatusIndicator");
-      const sessionNotice = document.getElementById("sessionClosedNotice");
-      const votingWrapper = document.getElementById("votingInteractionWrapper");
-      const resultsTag = document.getElementById("resultsStageTag");
-
-      if (headerBadge) headerBadge.innerText = quizState.currentRound;
-      if (partRoundTitle) partRoundTitle.innerText = `${quizState.currentRound}: Cast Your Votes`;
-
-      if (!quizState.sessionActive) {
-        if (sessionNotice) sessionNotice.classList.remove("hidden");
-        if (votingWrapper) votingWrapper.classList.add("hidden");
-        if (statusInd) statusInd.className = "inline-block w-3 h-3 rounded-full bg-zinc-600";
-        if (resultsTag) {
-          resultsTag.innerText = "Session Concluded";
-          resultsTag.className = "px-3 py-1 rounded-full text-xs font-bold uppercase bg-zinc-700/40 text-zinc-400 border border-zinc-600";
-        }
-        return;
-      }
-
-      if (sessionNotice) sessionNotice.classList.add("hidden");
-      if (votingWrapper) votingWrapper.classList.remove("hidden");
-
-      if (quizState.roundOpen) {
-        if (statusInd) statusInd.className = "inline-block w-3 h-3 rounded-full bg-emerald-400 animate-ping";
-        if (resultsTag) {
-          resultsTag.innerText = "Voting Active";
-          resultsTag.className = "px-3 py-1 rounded-full text-xs font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
-        }
+    // 4. Portal Views Switcher
+    function switchPortal(portal) {
+      if (portal === 'participant') {
+        document.getElementById("participantView").classList.remove("hidden");
+        document.getElementById("hostView").classList.add("hidden");
       } else {
-        if (statusInd) statusInd.className = "inline-block w-3 h-3 rounded-full bg-red-500";
-        if (resultsTag) {
-          resultsTag.innerText = quizState.resultsPublished ? "Results Published" : "Voting Awaiting Start";
-          resultsTag.className = "px-3 py-1 rounded-full text-xs font-bold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30";
-        }
+        document.getElementById("participantView").classList.add("hidden");
+        document.getElementById("hostView").classList.remove("hidden");
       }
     }
 
-    function initWebAudio() {
-      if (!audioCtx) {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        audioCtx = new AudioContext();
-      }
-      if (audioCtx.state === "suspended") {
-        audioCtx.resume();
-      }
-    }
-
-    function toggleAudio() {
-      initWebAudio();
-      const btn = document.getElementById("toggleAudioBtn");
-      const soundText = document.getElementById("soundStatusText");
-
-      if (!isAudioActive) {
-        isAudioActive = true;
-        btn.innerText = "Mute Audio";
-        btn.className = "px-3 py-1.5 text-xs font-bold rounded-lg border border-red-500/50 bg-red-500/20 text-red-300 hover:bg-red-500/30";
-        soundText.innerText = "Suspense audio armed and ready for active rounds";
-        if (quizState.roundOpen) startDrone();
-        showToast("Audio synthesizer active.");
-      } else {
-        isAudioActive = false;
-        btn.innerText = "Enable Audio";
-        btn.className = "px-3 py-1.5 text-xs font-bold rounded-lg border border-amber-500/50 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20";
-        soundText.innerText = "Suspense audio muted";
-        stopDrone();
-        showToast("Audio muted.");
-      }
-    }
-
-    function startDroneIfOpen() {
-      if (isAudioActive && quizState.roundOpen) {
-        startDrone();
-      }
-    }
-
-    function startDrone() {
-      if (!isAudioActive || !audioCtx) return;
-      stopDrone();
-
-      try {
-        // Deep low root drone
-        tensionDroneOsc = audioCtx.createOscillator();
-        tensionDroneGain = audioCtx.createGain();
-        tensionDroneOsc.type = "sawtooth";
-        tensionDroneOsc.frequency.setValueAtTime(55, audioCtx.currentTime); // Low A
-
-        // Filter out harsh highs for cinema suspense
-        const lowpass = audioCtx.createBiquadFilter();
-        lowpass.type = "lowpass";
-        lowpass.frequency.setValueAtTime(140, audioCtx.currentTime);
-
-        tensionDroneGain.gain.setValueAtTime(0.001, audioCtx.currentTime);
-        tensionDroneGain.gain.exponentialRampToValueAtTime(0.12, audioCtx.currentTime + 1.5);
-
-        tensionDroneOsc.connect(lowpass);
-        lowpass.connect(tensionDroneGain);
-        tensionDroneGain.connect(audioCtx.destination);
-        tensionDroneOsc.start();
-
-        // Sub oscillator for tension rumble
-        tensionSubOsc = audioCtx.createOscillator();
-        tensionSubGain = audioCtx.createGain();
-        tensionSubOsc.type = "sine";
-        tensionSubOsc.frequency.setValueAtTime(41.2, audioCtx.currentTime); // Low E rumble
-        tensionSubGain.gain.setValueAtTime(0.08, audioCtx.currentTime);
-
-        tensionSubOsc.connect(tensionSubGain);
-        tensionSubGain.connect(audioCtx.destination);
-        tensionSubOsc.start();
-
-        // Ticking metronome
-        tensionTickInterval = setInterval(() => {
-          if (!audioCtx || !quizState.roundOpen) return;
-          const tickOsc = audioCtx.createOscillator();
-          const tickGain = audioCtx.createGain();
-          tickOsc.type = "triangle";
-          tickOsc.frequency.setValueAtTime(800, audioCtx.currentTime);
-          tickGain.gain.setValueAtTime(0.04, audioCtx.currentTime);
-          tickGain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.05);
-
-          tickOsc.connect(tickGain);
-          tickGain.connect(audioCtx.destination);
-          tickOsc.start();
-          tickOsc.stop(audioCtx.currentTime + 0.06);
-        }, 1000);
-      } catch (e) {
-        console.warn("Audio drone playback issue:", e);
-      }
-    }
-
-    function stopDrone() {
-      if (tensionTickInterval) {
-        clearInterval(tensionTickInterval);
-        tensionTickInterval = null;
-      }
-      if (tensionDroneOsc) {
-        try { tensionDroneOsc.stop(); tensionDroneOsc.disconnect(); } catch (e) {}
-        tensionDroneOsc = null;
-      }
-      if (tensionSubOsc) {
-        try { tensionSubOsc.stop(); tensionSubOsc.disconnect(); } catch (e) {}
-        tensionSubOsc = null;
-      }
-    }
-
-    let remainingSeconds = 45;
-
-    function updateTimerDisplay() {
-      const timerEl = document.getElementById("countdownTimer");
-      if (!timerEl) return;
-      const mins = Math.floor(remainingSeconds / 60);
-      const secs = remainingSeconds % 60;
-      timerEl.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-
-    function startCountdown() {
-      clearInterval(countdownInterval);
-      remainingSeconds = quizState.timerSeconds || 45;
-      updateTimerDisplay();
-
-      countdownInterval = setInterval(() => {
-        remainingSeconds--;
-        updateTimerDisplay();
-
-        if (remainingSeconds <= 0) {
-          clearInterval(countdownInterval);
-          hostHardCloseRound();
-          showToast(`Timer expired! Round voting lines have closed.`);
-        }
-      }, 1000);
-    }
-
-    function requestHostCode() {
+    // 5. Host Gate Authentication
+    function verifyHostLogin() {
       const email = document.getElementById("hostEmailInput").value.trim().toLowerCase();
-      const err = document.getElementById("authEmailError");
+      const code = document.getElementById("hostPasscodeInput").value.trim();
 
-      if (email !== AUTHORIZED_HOST_EMAIL.toLowerCase()) {
-        err.innerText = `Access denied. Host panel is restricted to ${AUTHORIZED_HOST_EMAIL}.`;
-        err.classList.remove("hidden");
-        return;
+      if (email === HOST_EMAIL && code === HOST_PASSCODE) {
+        document.getElementById("hostGateBox").classList.add("hidden");
+        document.getElementById("hostDashboardBox").classList.remove("hidden");
+        renderHostDashboard();
+      } else {
+        alert("Authorization Denied! Only yashbangani.ai@gmail.com with the valid passcode can unlock the console.");
       }
-
-      err.classList.add("hidden");
-      // Generate a 6-digit verification token
-      expectedHostCode = Math.floor(100000 + Math.random() * 900000).toString();
-
-      document.getElementById("simulatedTokenDisplay").innerText = expectedHostCode;
-      document.getElementById("authEmailStep").classList.add("hidden");
-      document.getElementById("authCodeStep").classList.remove("hidden");
-      showToast("Security confirmation code generated.");
-    }
-
-    function verifyHostCode() {
-      const enteredCode = document.getElementById("hostCodeInput").value.trim();
-      const err = document.getElementById("authCodeError");
-
-      if (enteredCode !== expectedHostCode) {
-        err.innerText = "Invalid 6-digit security code. Please check and try again.";
-        err.classList.remove("hidden");
-        return;
-      }
-
-      err.classList.add("hidden");
-      isHostAuthenticated = true;
-      document.getElementById("hostAuthGate").classList.add("hidden");
-      document.getElementById("hostDashboardPanel").classList.remove("hidden");
-      renderHostOptionsInputs();
-      renderAuditTable();
-      showToast("Host authenticated successfully!");
     }
 
     function lockHostConsole() {
-      isHostAuthenticated = false;
-      document.getElementById("hostDashboardPanel").classList.add("hidden");
-      document.getElementById("hostAuthGate").classList.remove("hidden");
-      document.getElementById("authCodeStep").classList.add("hidden");
-      document.getElementById("authEmailStep").classList.remove("hidden");
-      document.getElementById("hostCodeInput").value = "";
-      showToast("Host console locked.");
+      document.getElementById("hostGateBox").classList.remove("hidden");
+      document.getElementById("hostDashboardBox").classList.add("hidden");
+      document.getElementById("hostPasscodeInput").value = "";
     }
 
-    function saveShowSetupToStorage() {
-      saveState();
-      showToast("Current quiz setup saved to browser storage!");
-    }
+    // 6. UI Rendering (Participant & Host)
+    function renderUI() {
+      // Participant header & badge
+      document.getElementById("pRoundTitle").textContent = state.round;
+      const statusBadge = document.getElementById("pStatusBadge");
+      const statusText = document.getElementById("pStatusText");
+      const submitBtn = document.getElementById("pSubmitBtn");
 
-    function loadBollywoodPreset() {
-      quizState.options = [...defaultVillains];
-      saveState();
-      renderHostOptionsInputs();
-      renderParticipantBallot();
-      renderResults();
-      showToast("Bollywood Villains preset loaded.");
-    }
-
-    function exportSetupJSON() {
-      const exportData = {
-        quizState: {
-          currentRound: quizState.currentRound,
-          timerSeconds: quizState.timerSeconds,
-          allowMultiple: quizState.allowMultiple,
-          options: quizState.options,
-          customHeroBanner: quizState.customHeroBanner
-        }
-      };
-
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.setAttribute("download", `Quiz_Villains_Setup_${Date.now()}.json`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      showToast("Configuration exported as JSON.");
-    }
-
-    function importSetupJSON(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          const imported = JSON.parse(e.target.result);
-          if (imported.quizState) {
-            if (imported.quizState.options && imported.quizState.options.length >= 6) {
-              quizState.options = imported.quizState.options;
-            }
-            if (imported.quizState.timerSeconds) quizState.timerSeconds = imported.quizState.timerSeconds;
-            if (imported.quizState.currentRound) quizState.currentRound = imported.quizState.currentRound;
-            if (imported.quizState.allowMultiple !== undefined) quizState.allowMultiple = imported.quizState.allowMultiple;
-            if (imported.quizState.customHeroBanner) {
-              quizState.customHeroBanner = imported.quizState.customHeroBanner;
-              applyHeroBanner(quizState.customHeroBanner);
-            }
-
-            saveState();
-            document.getElementById("hostRoundTitleInput").value = quizState.currentRound;
-            document.getElementById("hostTimerDuration").value = quizState.timerSeconds;
-            document.getElementById("hostMultipleChoiceToggle").value = quizState.allowMultiple ? "multiple" : "single";
-            renderHostOptionsInputs();
-            renderParticipantBallot();
-            renderResults();
-            showToast("Quiz setup imported successfully!");
-          }
-        } catch (err) {
-          showToast("Error parsing uploaded JSON configuration.", true);
-        }
-      };
-      reader.readAsText(file);
-    }
-
-    function applyHeroBanner(dataUrl) {
-      const hero = document.getElementById("heroPosterImg");
-      const placeholder = document.getElementById("heroFallbackPlaceholder");
-      if (hero) {
-        hero.src = dataUrl;
-        hero.classList.remove("hidden");
+      if (state.sessionEnded) {
+        statusBadge.className = "status-badge status-closed";
+        statusText.textContent = "SESSION CONCLUDED";
+        submitBtn.disabled = true;
+        submitBtn.textContent = "EVENT FINISHED";
+        stopSuspenseSound();
+        return;
       }
-      if (placeholder) placeholder.classList.add("hidden");
-    }
 
-    function handleHeroBannerUpload(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        quizState.customHeroBanner = e.target.result;
-        applyHeroBanner(quizState.customHeroBanner);
-        saveState();
-        showToast("Hero banner updated from local computer.");
-      };
-      reader.readAsDataURL(file);
-    }
+      if (state.isOpen) {
+        statusBadge.className = "status-badge status-open";
+        statusText.textContent = "VOTING ACTIVE";
+        submitBtn.disabled = false;
+        submitBtn.textContent = "CAST OFFICIAL VOTE";
+        startSuspenseSound();
+      } else {
+        statusBadge.className = "status-badge status-closed";
+        statusText.textContent = "VOTING CLOSED";
+        submitBtn.disabled = true;
+        submitBtn.textContent = "VOTING CLOSED";
+        stopSuspenseSound();
+      }
 
-    function handleOptionImageUpload(event, index) {
-      const file = event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        quizState.options[index].img = e.target.result;
-        saveState();
-        renderHostOptionsInputs();
-        renderParticipantBallot();
-        showToast(`Image loaded for ${quizState.options[index].name}!`);
-      };
-      reader.readAsDataURL(file);
-    }
+      document.getElementById("pInstructionText").textContent = state.allowMultiple ? 
+        "Select one or more choices for this round:" : "Select your single choice for this round:";
 
-    function removeOptionImage(index) {
-      quizState.options[index].img = "";
-      saveState();
-      renderHostOptionsInputs();
-      renderParticipantBallot();
-      showToast(`Image removed for ${quizState.options[index].name}.`);
-    }
-
-    // ==============================================================
-    // 7. PARTICIPANT BALLOT & VOTING
-    // ==============================================================
-    let participantSelectedOptions = [];
-
-    function populateTeamDropdown() {
-      const teamSelect = document.getElementById("voterTeam");
-      if (!teamSelect) return;
-
-      const previousSelectedTeam = teamSelect.value;
-      teamSelect.innerHTML = `<option value="" disabled ${!previousSelectedTeam ? 'selected' : ''}>Select Your Assigned Team...</option>`;
-
-      quizState.options.forEach((opt, idx) => {
+      // Populate Team Dropdown
+      const teamDropdown = document.getElementById("voterTeamDropdown");
+      const currentTeam = teamDropdown.value;
+      teamDropdown.innerHTML = `<option value="">-- Choose Your Team --</option>`;
+      state.options.forEach((opt, idx) => {
         const optionEl = document.createElement("option");
         optionEl.value = opt.name;
         optionEl.textContent = `Team ${idx + 1}: ${opt.name}`;
-        optionEl.className = "bg-zinc-900 text-white py-1";
-        if (previousSelectedTeam === opt.name) {
-          optionEl.selected = true;
-        }
-        teamSelect.appendChild(optionEl);
+        teamDropdown.appendChild(optionEl);
       });
-    }
+      teamDropdown.value = currentTeam;
 
-    function renderParticipantBallot() {
-      updateStageStateBadges();
-      populateTeamDropdown();
-      const container = document.getElementById("optionsContainer");
-      const modeDesc = document.getElementById("selectionModeDescription");
-      const guidance = document.getElementById("ballotGuidance");
-
-      if (quizState.allowMultiple) {
-        modeDesc.innerText = "Multiple Choice Mode: You may pick multiple options";
-        guidance.innerText = "Click to toggle selection on multiple options";
-      } else {
-        modeDesc.innerText = "Single Choice Mode: Select exactly 1 option";
-        guidance.innerText = "Select one villain";
-      }
-
-      container.innerHTML = "";
-
-      quizState.options.forEach((opt, idx) => {
-        const isSelected = participantSelectedOptions.includes(opt.name);
+      // Render Participant Option Cards
+      const grid = document.getElementById("pOptionsGrid");
+      grid.innerHTML = "";
+      state.options.forEach(opt => {
+        const isSelected = selectedPicks.includes(opt.name);
         const card = document.createElement("div");
-        card.className = `p-3.5 rounded-2xl border cursor-pointer transition-all flex items-center space-x-3.5 select-none ${
-          isSelected 
-            ? 'theatre-card-active bg-amber-500/20 border-amber-400' 
-            : 'theatre-card border-amber-500/20 hover:border-amber-400/60'
-        }`;
+        card.className = `option-card ${isSelected ? 'selected' : ''}`;
+        card.onclick = () => toggleSelectPick(opt.name);
+        
+        const img = document.createElement("img");
+        img.className = "option-thumb";
+        img.src = opt.img || "villain1.png";
+        img.alt = opt.name;
+        img.onerror = () => { img.src = "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=300"; };
 
-        card.onclick = () => selectOption(opt.name);
+        const nameSpan = document.createElement("span");
+        nameSpan.className = "option-name";
+        nameSpan.textContent = opt.name;
 
-        // Display local image if uploaded, otherwise fallback to styled villain badge
-        const imgHtml = opt.img 
-          ? `<img src="${opt.img}" alt="${opt.name}" class="w-16 h-16 rounded-xl object-cover border border-amber-500/40 shrink-0 shadow-md">`
-          : `<div class="w-16 h-16 rounded-xl bg-gradient-to-br from-amber-950/70 to-black border border-amber-500/30 flex items-center justify-center text-amber-400 font-cinzel font-bold text-xl shrink-0 shadow-inner">V${idx+1}</div>`;
-
-        card.innerHTML = `
-          ${imgHtml}
-          <div class="flex-1 min-w-0">
-            <h4 class="text-sm md:text-base font-bold text-white truncate">${opt.name}</h4>
-            <p class="text-[11px] text-zinc-400 mt-0.5">Option #${idx+1}</p>
-          </div>
-          <div class="w-7 h-7 rounded-full border flex items-center justify-center shrink-0 ${
-            isSelected ? 'bg-amber-500 border-amber-400 text-black font-extrabold text-sm' : 'border-zinc-600'
-          }">
-            ${isSelected ? '✓' : ''}
-          </div>
-        `;
-
-        container.appendChild(card);
+        card.appendChild(img);
+        card.appendChild(nameSpan);
+        grid.appendChild(card);
       });
-    }
 
-    function selectOption(optName) {
-      if (!quizState.roundOpen) {
-        showToast("Voting is currently closed for this round.", true);
-        return;
+      // Handle Timer
+      clearInterval(countdownInterval);
+      if (state.isOpen && state.roundEndAt) {
+        countdownInterval = setInterval(() => {
+          const now = Date.now();
+          const left = Math.max(0, Math.round((state.roundEndAt - now) / 1000));
+          document.getElementById("pTimerText").textContent = `Timer: ${left}s`;
+          if (left <= 0) {
+            clearInterval(countdownInterval);
+            if (document.getElementById("hostDashboardBox").classList.contains("hidden") === false) {
+              hostToggleRound(false);
+            }
+          }
+        }, 1000);
+      } else {
+        document.getElementById("pTimerText").textContent = "Timer: --";
       }
 
-      if (quizState.allowMultiple) {
-        if (participantSelectedOptions.includes(optName)) {
-          participantSelectedOptions = participantSelectedOptions.filter(o => o !== optName);
+      // Handle Results & Telemetry
+      if (state.isPublished) {
+        document.getElementById("pTelemetryBox").classList.add("hidden");
+        document.getElementById("pOfficialResultsBox").classList.remove("hidden");
+      } else {
+        document.getElementById("pTelemetryBox").classList.remove("hidden");
+        document.getElementById("pOfficialResultsBox").classList.add("hidden");
+      }
+    }
+
+    function toggleSelectPick(name) {
+      if (!state.isOpen) return;
+      if (state.allowMultiple) {
+        if (selectedPicks.includes(name)) {
+          selectedPicks = selectedPicks.filter(item => item !== name);
         } else {
-          participantSelectedOptions.push(optName);
+          selectedPicks.push(name);
         }
       } else {
-        participantSelectedOptions = [optName];
+        selectedPicks = [name];
       }
-      renderParticipantBallot();
+      renderUI();
     }
 
+    // 7. Participant Submit Vote
     function submitParticipantVote() {
+      if (!state.isOpen) return alert("Voting lines are closed!");
+      
       const name = document.getElementById("voterName").value.trim();
-      const whatsapp = document.getElementById("voterWhatsapp").value.trim();
-      const team = document.getElementById("voterTeam").value;
-      const fb = document.getElementById("voterFeedback");
-
-      if (!quizState.sessionActive) {
-        showToast("This voting session has ended.", true);
-        return;
-      }
-
-      if (!quizState.roundOpen) {
-        showToast("Voting lines are closed. Await next round.", true);
-        return;
-      }
+      const whatsapp = document.getElementById("voterWhatsApp").value.trim();
+      const team = document.getElementById("voterTeamDropdown").value;
 
       if (!name || !whatsapp || !team) {
-        fb.innerText = "Please complete Name, WhatsApp No., and select your Team from the dropdown.";
-        fb.className = "text-xs font-semibold text-rose-400 block";
-        return;
+        return alert("Please fill in Name, WhatsApp number, and choose your Team from the dropdown!");
+      }
+      if (selectedPicks.length === 0) {
+        return alert("Please select at least one option card before submitting!");
       }
 
-      if (participantSelectedOptions.length === 0) {
-        fb.innerText = "Please choose at least one option before submitting.";
-        fb.className = "text-xs font-semibold text-rose-400 block";
-        return;
-      }
+      // Record to Firestore
+      db.collection("quiz_poll").doc("data").collection("votes").add({
+        round: state.round,
+        name: name,
+        whatsapp: whatsapp,
+        team: team,
+        picks: selectedPicks,
+        timestamp: Date.now()
+      }).then(() => {
+        alert("🎉 Your official vote has been recorded live!");
+        selectedPicks = [];
+        renderUI();
+      }).catch(err => {
+        alert("Error saving vote: " + err.message);
+      });
+    }
 
-      // Check duplicate WhatsApp entry in the current round
-      const existingVote = quizState.votes.find(
-        v => v.whatsapp === whatsapp && v.round === quizState.currentRound
-      );
-
-      if (existingVote) {
-        fb.innerText = `WhatsApp (${whatsapp}) has already voted in ${quizState.currentRound}. Multiple entries not permitted.`;
-        fb.className = "text-xs font-semibold text-amber-400 block";
-        return;
-      }
-
-      // Record votes
-      participantSelectedOptions.forEach(choice => {
-        quizState.votes.push({
-          id: Date.now() + Math.random(),
-          round: quizState.currentRound,
-          name: name,
-          whatsapp: whatsapp,
-          team: team,
-          choice: choice,
-          time: new Date().toLocaleTimeString()
+    // 8. Results & Telemetry
+    function renderOfficialResults() {
+      const container = document.getElementById("officialResultsList");
+      container.innerHTML = "";
+      
+      const roundVotes = localVotes.filter(v => v.round === state.round);
+      const counts = {};
+      state.options.forEach(o => counts[o.name] = 0);
+      
+      roundVotes.forEach(v => {
+        v.picks.forEach(p => {
+          if (counts[p] !== undefined) counts[p]++;
         });
       });
 
-      saveState();
-      fb.innerText = "✓ Your vote has been recorded successfully!";
-      fb.className = "text-xs font-semibold text-emerald-400 block";
-      showToast("Vote registered for " + team + "!");
-      participantSelectedOptions = [];
-      renderParticipantBallot();
-      renderResults();
-      if (isHostAuthenticated) renderAuditTable();
-    }
+      const totalPicks = Object.values(counts).reduce((a, b) => a + b, 0);
 
-    // ==============================================================
-    // 9. RESULTS & LIVE FLUCTUATING TELEMETRY BARS
-    // ==============================================================
-    function renderResults() {
-      const unreleasedView = document.getElementById("unreleasedSimulationView");
-      const officialView = document.getElementById("officialResultsView");
-
-      if (!quizState.resultsPublished) {
-        unreleasedView.classList.remove("hidden");
-        officialView.classList.add("hidden");
-        renderFluctuatingBars();
-      } else {
-        unreleasedView.classList.add("hidden");
-        officialView.classList.remove("hidden");
-        renderOfficialBars();
-      }
-    }
-
-    function renderFluctuatingBars() {
-      const container = document.getElementById("fluctuatingBarsList");
-      container.innerHTML = "";
-
-      const animClasses = [
-        "bar-fluctuate-1", "bar-fluctuate-2", "bar-fluctuate-3", 
-        "bar-fluctuate-4", "bar-fluctuate-5", "bar-fluctuate-6"
-      ];
-
-      quizState.options.forEach((opt, idx) => {
-        const anim = animClasses[idx % animClasses.length];
+      state.options.forEach(o => {
+        const val = counts[o.name];
+        const pct = totalPicks > 0 ? Math.round((val / totalPicks) * 100) : 0;
+        
         const row = document.createElement("div");
-        row.className = "space-y-1";
+        row.style.marginBottom = "8px";
         row.innerHTML = `
-          <div class="flex justify-between text-xs font-semibold text-zinc-300">
-            <span class="truncate pr-2">${opt.name}</span>
-            <span class="text-amber-400 animate-pulse text-[11px]">Live Incoming...</span>
+          <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:3px;">
+            <span>${o.name}</span>
+            <span style="color:var(--gold); font-weight:700;">${val} votes (${pct}%)</span>
           </div>
-          <div class="w-full bg-black/60 rounded-full h-3 overflow-hidden border border-amber-500/20">
-            <div class="h-full bg-gradient-to-r from-amber-600 via-amber-400 to-amber-200 rounded-full origin-left ${anim}"></div>
+          <div style="height:12px; background:#200a0a; border-radius:6px; overflow:hidden;">
+            <div style="height:100%; width:${pct}%; background:linear-gradient(90deg, #c1121f, var(--gold));"></div>
           </div>
         `;
         container.appendChild(row);
       });
     }
 
-    function renderOfficialBars() {
-      const container = document.getElementById("officialResultsBars");
-      container.innerHTML = "";
-
-      const roundVotes = quizState.votes.filter(v => v.round === quizState.currentRound);
-      const totalVotes = roundVotes.length;
-      document.getElementById("totalRoundVotesCount").innerText = `Total Votes: ${totalVotes}`;
-
-      const counts = {};
-      quizState.options.forEach(o => counts[o.name] = 0);
-      roundVotes.forEach(v => {
-        if (counts[v.choice] !== undefined) counts[v.choice]++;
-      });
-
-      quizState.options.forEach(opt => {
-        const voteCount = counts[opt.name] || 0;
-        const pct = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
-
-        const row = document.createElement("div");
-        row.className = "space-y-1";
-        row.innerHTML = `
-          <div class="flex justify-between text-xs font-bold text-white">
-            <span class="truncate pr-2">${opt.name}</span>
-            <span class="text-amber-300">${voteCount} votes (${pct}%)</span>
-          </div>
-          <div class="w-full bg-black/70 rounded-full h-3.5 p-0.5 border border-amber-500/30">
-            <div class="h-full bg-gradient-to-r from-amber-600 to-amber-400 rounded-full transition-all duration-700" style="width: ${pct}%"></div>
-          </div>
-        `;
-        container.appendChild(row);
-      });
+    // Randomized fluctuating telemetry bars (Rule 5)
+    function initTelemetry() {
+      const list = document.getElementById("telemetryBarsList");
+      clearInterval(telemetryInterval);
+      telemetryInterval = setInterval(() => {
+        list.innerHTML = "";
+        state.options.forEach(o => {
+          const rand = Math.floor(Math.random() * 70) + 15;
+          const div = document.createElement("div");
+          div.className = "telemetry-bar-wrap";
+          div.innerHTML = `
+            <div class="telemetry-bar-label">
+              <span>${o.name}</span>
+              <span style="color:#aaa;">Tracking traffic...</span>
+            </div>
+            <div class="telemetry-bar-bg">
+              <div class="telemetry-bar-fill" style="width: ${rand}%;"></div>
+            </div>
+          `;
+          list.appendChild(div);
+        });
+      }, 1000);
     }
 
-    let cumulativeOpen = false;
-    function toggleCumulativeResults() {
-      cumulativeOpen = !cumulativeOpen;
-      const section = document.getElementById("cumulativeResultsSection");
-      const btnText = document.getElementById("toggleCumText");
+    // 9. Web Audio Suspense Tension Loop (Rule 12)
+    function startSuspenseSound() {
+      if (audioCtx) return;
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContext();
+        droneOsc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
 
-      if (cumulativeOpen) {
-        section.classList.remove("hidden");
-        btnText.innerText = "Hide Cumulative Results";
-        renderCumulativeBars();
-      } else {
-        section.classList.add("hidden");
-        btnText.innerText = "Show Cumulative Results Across All Completed Rounds";
+        droneOsc.type = 'sawtooth';
+        droneOsc.frequency.setValueAtTime(55, audioCtx.currentTime); // Low A drone
+        gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
+
+        droneOsc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        droneOsc.start();
+      } catch(e) {}
+    }
+
+    function stopSuspenseSound() {
+      if (audioCtx) {
+        try {
+          droneOsc.stop();
+          audioCtx.close();
+        } catch(e) {}
+        audioCtx = null;
+        droneOsc = null;
       }
     }
 
-    function renderCumulativeBars() {
-      const target = document.getElementById("cumulativeBars");
-      target.innerHTML = "";
-
-      const totalVotes = quizState.votes.length;
-      if (totalVotes === 0) {
-        target.innerHTML = `<p class="text-xs text-zinc-500">No cumulative votes recorded yet.</p>`;
-        return;
-      }
-
-      const cumCounts = {};
-      quizState.options.forEach(o => cumCounts[o.name] = 0);
-      quizState.votes.forEach(v => {
-        cumCounts[v.choice] = (cumCounts[v.choice] || 0) + 1;
-      });
-
-      quizState.options.forEach(opt => {
-        const count = cumCounts[opt.name] || 0;
-        const pct = Math.round((count / totalVotes) * 100);
-
-        const row = document.createElement("div");
-        row.className = "space-y-1";
-        row.innerHTML = `
-          <div class="flex justify-between text-[11px] font-semibold text-zinc-300">
-            <span>${opt.name}</span>
-            <span class="text-amber-400">${count} cumulative votes (${pct}%)</span>
-          </div>
-          <div class="w-full bg-black/60 rounded-full h-2 overflow-hidden border border-zinc-700">
-            <div class="h-full bg-amber-500" style="width: ${pct}%"></div>
-          </div>
+    // 10. Host Controls
+    function renderHostDashboard() {
+      document.getElementById("hRoundTitleInput").value = state.round;
+      document.getElementById("hTimerInput").value = state.timerSeconds;
+      document.getElementById("hModeSelect").value = state.allowMultiple ? "multiple" : "single";
+      
+      const optContainer = document.getElementById("hOptionsList");
+      optContainer.innerHTML = "";
+      state.options.forEach((opt, idx) => {
+        const card = document.createElement("div");
+        card.style.background = "#1b0a0a";
+        card.style.border = "1px solid #4a2222";
+        card.style.padding = "10px";
+        card.style.borderRadius = "6px";
+        card.innerHTML = `
+          <div style="font-weight:700; color:var(--gold); margin-bottom:4px;">Option ${idx + 1}</div>
+          <input type="text" class="form-control" value="${opt.name}" style="margin-bottom:6px;" onchange="updateOptionName(${idx}, this.value)">
+          <input type="text" class="form-control" value="${opt.img}" placeholder="Image file name (e.g. villain1.png)" onchange="updateOptionImg(${idx}, this.value)">
         `;
-        target.appendChild(row);
+        optContainer.appendChild(card);
       });
     }
 
-    // ==============================================================
-    // 10. HOST CONTROL ACTIONS & OPTION PERSISTENCE
-    // ==============================================================
-    function hostOpenRound() {
-      quizState.currentRound = document.getElementById("hostRoundTitleInput").value.trim() || quizState.currentRound;
-      quizState.timerSeconds = parseInt(document.getElementById("hostTimerDuration").value, 10) || 45;
-      quizState.allowMultiple = (document.getElementById("hostMultipleChoiceToggle").value === "multiple");
-
-      quizState.roundOpen = true;
-      quizState.resultsPublished = false;
-      saveState();
-
-      startCountdown();
-      startDroneIfOpen();
-      updateStageStateBadges();
-      renderParticipantBallot();
-      renderResults();
-      showToast(`Voting lines OPEN for ${quizState.currentRound}!`);
-    }
-
-    function hostHardCloseRound() {
-      quizState.roundOpen = false;
-      clearInterval(countdownInterval);
-      stopDrone();
-      saveState();
-      updateStageStateBadges();
-      renderParticipantBallot();
-      showToast(`Hard closed ${quizState.currentRound}.`);
+    function hostToggleRound(open) {
+      state.isOpen = open;
+      state.roundEndAt = open ? (Date.now() + (state.timerSeconds * 1000)) : null;
+      db.collection("quiz_poll").doc("state").set(state);
     }
 
     function hostPublishResults() {
-      quizState.resultsPublished = true;
-      saveState();
-      renderResults();
-      showToast(`Results for ${quizState.currentRound} published to participants!`);
+      state.isPublished = true;
+      db.collection("quiz_poll").doc("state").set(state);
     }
 
-    function hostHideResults() {
-      quizState.resultsPublished = false;
-      saveState();
-      renderResults();
-      showToast("Results masked. Returning to suspense activity bars.");
-    }
-
-    function hostAdvanceNextRound() {
-      const match = quizState.currentRound.match(/\d+/);
-      const nextNum = match ? parseInt(match[0], 10) + 1 : 2;
-      quizState.currentRound = `Round ${nextNum}`;
-      document.getElementById("hostRoundTitleInput").value = quizState.currentRound;
-
-      quizState.roundOpen = false;
-      quizState.resultsPublished = false;
-      clearInterval(countdownInterval);
-      stopDrone();
-      saveState();
-
-      updateStageStateBadges();
-      renderParticipantBallot();
-      renderResults();
-      showToast(`Advanced to ${quizState.currentRound}. Options remain locked and persistent.`);
+    function hostAdvanceRound() {
+      const match = state.round.match(/\d+/);
+      const nextNum = match ? parseInt(match[0]) + 1 : 2;
+      state.round = `Round ${nextNum}`;
+      state.isOpen = false;
+      state.isPublished = false;
+      db.collection("quiz_poll").doc("state").set(state);
     }
 
     function hostEndEntireSession() {
-      quizState.sessionActive = false;
-      quizState.roundOpen = false;
-      clearInterval(countdownInterval);
-      stopDrone();
-      saveState();
-
-      updateStageStateBadges();
-      renderParticipantBallot();
-      showToast("The entire voting session has been terminated.");
-    }
-
-    // ==============================================================
-    // 11. HOST OPTIONS MANAGER (Min 6, Max 10, Local File Pickers)
-    // ==============================================================
-    function renderHostOptionsInputs() {
-      const container = document.getElementById("hostOptionsConfigList");
-      container.innerHTML = "";
-
-      document.getElementById("addOptBtn").disabled = (quizState.options.length >= 10);
-      document.getElementById("remOptBtn").disabled = (quizState.options.length <= 6);
-
-      quizState.options.forEach((opt, idx) => {
-        const div = document.createElement("div");
-        div.className = "p-3.5 bg-black/50 rounded-xl border border-zinc-800 space-y-2.5";
-        
-        const previewImg = opt.img 
-          ? `<div class="relative w-12 h-12 shrink-0">
-               <img src="${opt.img}" class="w-12 h-12 rounded-lg object-cover border border-amber-500/40">
-               <button onclick="removeOptionImage(${idx})" title="Remove image" class="absolute -top-1 -right-1 bg-rose-600 hover:bg-rose-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">✕</button>
-             </div>`
-          : `<div class="w-12 h-12 rounded-lg bg-zinc-900 border border-zinc-700 flex items-center justify-center text-zinc-500 text-xs shrink-0">No Img</div>`;
-
-        div.innerHTML = `
-          <div class="flex items-center justify-between">
-            <span class="text-[11px] font-bold text-amber-400 uppercase">Option #${idx+1}</span>
-            <span class="text-[10px] text-zinc-500">Persistent across rounds</span>
-          </div>
-          <input type="text" value="${opt.name}" placeholder="Option Label" 
-            onchange="updateOptionName(${idx}, this.value)" 
-            class="w-full bg-black/70 border border-zinc-700 focus:border-amber-400 text-xs px-2.5 py-1.5 rounded-lg text-white">
-          
-          <div class="flex items-center gap-2 pt-1 border-t border-zinc-800/80">
-            ${previewImg}
-            <label class="flex-1 py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 text-amber-300 text-[11px] font-semibold rounded-lg border border-zinc-700 text-center cursor-pointer truncate">
-              📁 Choose Local Image
-              <input type="file" accept="image/*" onchange="handleOptionImageUpload(event, ${idx})" class="hidden">
-            </label>
-          </div>
-        `;
-        container.appendChild(div);
-      });
-    }
-
-    function updateOptionName(idx, val) {
-      if (val.trim()) {
-        quizState.options[idx].name = val.trim();
-        saveState();
-        renderParticipantBallot();
-        renderResults();
+      if (confirm("Are you sure you want to end the entire voting session?")) {
+        state.isOpen = false;
+        state.sessionEnded = true;
+        db.collection("quiz_poll").doc("state").set(state);
       }
     }
 
-    function hostAddOption() {
-      if (quizState.options.length >= 10) {
-        showToast("Maximum of 10 options allowed by tournament rules.", true);
-        return;
-      }
-      const newNum = quizState.options.length + 1;
-      quizState.options.push({
-        id: Date.now(),
-        name: `Villain Option ${newNum}`,
-        img: ""
-      });
-      saveState();
-      renderHostOptionsInputs();
-      renderParticipantBallot();
-      renderResults();
-    }
+    function hostUpdateRoundTitle(v) { state.round = v; db.collection("quiz_poll").doc("state").set(state); }
+    function hostUpdateTimer(v) { state.timerSeconds = parseInt(v) || 60; db.collection("quiz_poll").doc("state").set(state); }
+    function hostUpdateMode(v) { state.allowMultiple = (v === "multiple"); db.collection("quiz_poll").doc("state").set(state); }
+    function updateOptionName(idx, val) { state.options[idx].name = val; db.collection("quiz_poll").doc("state").set(state); }
+    function updateOptionImg(idx, val) { state.options[idx].img = val; db.collection("quiz_poll").doc("state").set(state); }
 
-    function hostRemoveOption() {
-      if (quizState.options.length <= 6) {
-        showToast("Minimum 6 options required by tournament rules.", true);
-        return;
-      }
-      quizState.options.pop();
-      saveState();
-      renderHostOptionsInputs();
-      renderParticipantBallot();
-      renderResults();
-    }
-
-    // ==============================================================
-    // 12. HOST AUDIT TABLE & CSV EXPORT
-    // ==============================================================
-    function renderAuditTable() {
-      const tbody = document.getElementById("voterAuditTableBody");
+    function renderAuditLogs() {
+      const tbody = document.getElementById("hAuditTableBody");
+      document.getElementById("hVoterCount").textContent = localVotes.length;
       tbody.innerHTML = "";
 
-      if (quizState.votes.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-zinc-500">No votes logged in the arena yet.</td></tr>`;
+      if (localVotes.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#888;">No votes cast yet.</td></tr>`;
         return;
       }
 
-      quizState.votes.forEach((v, index) => {
+      localVotes.forEach(v => {
         const tr = document.createElement("tr");
-        tr.className = "hover:bg-zinc-900/60";
+        const timeStr = new Date(v.timestamp).toLocaleTimeString();
         tr.innerHTML = `
-          <td class="p-3 font-mono text-zinc-400">${index + 1}</td>
-          <td class="p-3 font-semibold text-amber-300">${v.round}</td>
-          <td class="p-3 text-white font-medium">${escapeHtml(v.name)}</td>
-          <td class="p-3 font-mono text-zinc-300">${escapeHtml(v.whatsapp)}</td>
-          <td class="p-3 text-amber-200">${escapeHtml(v.team)}</td>
-          <td class="p-3 text-white font-bold">${escapeHtml(v.choice)}</td>
-          <td class="p-3 text-zinc-500 text-[10px]">${v.time}</td>
+          <td><strong>${v.round}</strong></td>
+          <td>${v.name}</td>
+          <td>${v.whatsapp}</td>
+          <td>${v.team}</td>
+          <td style="color:var(--gold); font-weight:700;">${v.picks.join(", ")}</td>
+          <td style="color:#aaa;">${timeStr}</td>
         `;
         tbody.appendChild(tr);
       });
     }
 
-    function escapeHtml(str) {
-      if (!str) return "";
-      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    }
-
     function exportVotesCSV() {
-      if (quizState.votes.length === 0) {
-        showToast("No voter logs to export yet.", true);
-        return;
-      }
-
-      let csv = "ID,Round,Voter_Name,WhatsApp_No,Team_Name,Chosen_Option,Timestamp\n";
-      quizState.votes.forEach((v, i) => {
-        csv += `"${i+1}","${v.round}","${v.name}","${v.whatsapp}","${v.team}","${v.choice}","${v.time}"\n`;
+      if (localVotes.length === 0) return alert("No votes to export!");
+      let csv = "Round,Name,WhatsApp,Team,Picks,Timestamp\n";
+      localVotes.forEach(v => {
+        csv += `"${v.round}","${v.name}","${v.whatsapp}","${v.team}","${v.picks.join(';')}",${new Date(v.timestamp).toISOString()}\n`;
       });
-
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.setAttribute("download", `Villains_Quiz_Auditor_Logs_${Date.now()}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Poll_Votes_Audit_${Date.now()}.csv`;
+      a.click();
     }
 
-    // ==============================================================
-    // 13. INITIALIZATION ON WINDOW LOAD
-    // ==============================================================
-    window.onload = function () {
-      if (quizState.customHeroBanner) {
-        applyHeroBanner(quizState.customHeroBanner);
-      }
-
-      document.getElementById("hostRoundTitleInput").value = quizState.currentRound;
-      document.getElementById("hostTimerDuration").value = quizState.timerSeconds;
-      document.getElementById("hostMultipleChoiceToggle").value = quizState.allowMultiple ? "multiple" : "single";
-
-      updateStageStateBadges();
-      renderParticipantBallot();
-      renderResults();
-      updateTimerDisplay();
-
-      // Fluctuation jitter for unreleased bars
-      setInterval(() => {
-        if (!quizState.resultsPublished) {
-          const bars = document.querySelectorAll("#fluctuatingBarsList .origin-left");
-          bars.forEach(b => {
-            const randomScale = (0.2 + Math.random() * 0.75).toFixed(2);
-            b.style.transform = `scaleX(${randomScale})`;
-          });
-        }
-      }, 1200);
+    // Boot
+    window.onload = () => {
+      startRealtimeSync();
+      initTelemetry();
     };
   </script>
 </body>
