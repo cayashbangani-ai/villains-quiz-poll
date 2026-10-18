@@ -539,12 +539,12 @@
     }
 
     function renderUI() {
-      document.getElementById("pRoundTitle").textContent = state.round;
+      document.getElementById("pRoundTitle").textContent = state.round || "Round 1";
       const statusBadge = document.getElementById("pStatusBadge");
       const statusText = document.getElementById("pStatusText");
       const submitBtn = document.getElementById("pSubmitBtn");
 
-      // Populate Team Dropdown always so it never vanishes
+      // Populate Team Dropdown
       const teamDropdown = document.getElementById("voterTeamDropdown");
       const currentTeam = teamDropdown.value;
       teamDropdown.innerHTML = `<option value="">-- Choose Your Team --</option>`;
@@ -554,9 +554,9 @@
         optionEl.textContent = `Team ${idx + 1}: ${opt.name}`;
         teamDropdown.appendChild(optionEl);
       });
-      teamDropdown.value = currentTeam;
+      if (currentTeam) teamDropdown.value = currentTeam;
 
-      // Render Participant Option Cards
+      // Render Option Cards
       const grid = document.getElementById("pOptionsGrid");
       grid.innerHTML = "";
       (state.options || defaultOptions).forEach(opt => {
@@ -580,7 +580,7 @@
         grid.appendChild(card);
       });
 
-      // Handle session state
+      // Handle Session Status Display
       if (state.sessionEnded) {
         statusBadge.className = "status-badge status-ended";
         statusText.textContent = "SESSION CONCLUDED";
@@ -608,7 +608,7 @@
       document.getElementById("pInstructionText").textContent = state.allowMultiple ? 
         "Select one or more choices for this round:" : "Select your single choice for this round:";
 
-      // Timer calculation
+      // Countdown logic
       clearInterval(countdownInterval);
       if (state.isOpen && state.roundEndAt) {
         countdownInterval = setInterval(() => {
@@ -768,10 +768,9 @@
       }
     }
 
-    // Host Functions
     function renderHostDashboard() {
-      document.getElementById("hRoundTitleInput").value = state.round;
-      document.getElementById("hTimerInput").value = state.timerSeconds;
+      document.getElementById("hRoundTitleInput").value = state.round || "Round 1";
+      document.getElementById("hTimerInput").value = state.timerSeconds || 60;
       document.getElementById("hModeSelect").value = state.allowMultiple ? "multiple" : "single";
       
       const optContainer = document.getElementById("hOptionsList");
@@ -791,8 +790,9 @@
       });
     }
 
+    // Host Controls: Guaranteed to clear sessionEnded lock
     function hostToggleRound(open) {
-      state.sessionEnded = false; // Always clear frozen flag when opening
+      state.sessionEnded = false;
       state.isOpen = open;
       state.roundEndAt = open ? (Date.now() + (state.timerSeconds * 1000)) : null;
       db.collection("quiz_poll").doc("state").set(state);
@@ -804,17 +804,17 @@
     }
 
     function hostAdvanceRound() {
-      const match = state.round.match(/\d+/);
+      const match = (state.round || "").match(/\d+/);
       const nextNum = match ? parseInt(match[0]) + 1 : 2;
       state.round = `Round ${nextNum}`;
       state.isOpen = false;
       state.isPublished = false;
-      state.sessionEnded = false; // Unfreeze
+      state.sessionEnded = false;
       db.collection("quiz_poll").doc("state").set(state);
     }
 
     function hostResetEntireSession() {
-      if (confirm("Reset to Round 1 and unfreeze the session for a brand new game?")) {
+      if (confirm("Reset to Round 1 and start fresh?")) {
         state.round = "Round 1";
         state.isOpen = false;
         state.isPublished = false;
@@ -824,7 +824,7 @@
     }
 
     function hostEndEntireSession() {
-      if (confirm("End the entire voting session? Participants will see 'SESSION CONCLUDED'.")) {
+      if (confirm("End the entire voting session?")) {
         state.isOpen = false;
         state.sessionEnded = true;
         db.collection("quiz_poll").doc("state").set(state);
