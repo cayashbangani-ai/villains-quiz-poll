@@ -170,7 +170,7 @@
       transition: all 0.2s ease;
       position: relative;
     }
-    .option-card:hover {
+    .option-card:hover:not(.self-disabled) {
       border-color: var(--gold);
       box-shadow: 0 0 12px rgba(244, 196, 48, 0.3);
     }
@@ -179,6 +179,26 @@
       background: rgba(244, 196, 48, 0.15);
       box-shadow: 0 0 15px var(--gold-glow);
     }
+    .option-card.self-disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      border-color: #552222;
+      filter: grayscale(0.5);
+    }
+    .self-tag {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: #e63946;
+      color: #fff;
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
     .option-thumb {
       width: 100%;
       height: 140px;
@@ -329,7 +349,7 @@
         </div>
         <div class="form-group">
           <label>Select Your Team *</label>
-          <select id="voterTeamDropdown" class="form-control">
+          <select id="voterTeamDropdown" class="form-control" onchange="handleTeamChange()">
             <option value="">-- Choose Your Team --</option>
           </select>
         </div>
@@ -353,7 +373,7 @@
           <div id="telemetryBarsList"></div>
         </div>
 
-        <!-- Official Aggregated Chart (ONLY counts real voter submissions) -->
+        <!-- Official Aggregated Chart -->
         <div id="pOfficialResultsBox" class="card hidden" style="background: rgba(0,0,0,0.5); padding: 14px;">
           <div id="officialResultsList"></div>
         </div>
@@ -543,6 +563,16 @@
       document.getElementById("hostPasscodeInput").value = "";
     }
 
+    // Handles dynamically disabling self-voting whenever team changes
+    function handleTeamChange() {
+      const chosenTeam = document.getElementById("voterTeamDropdown").value;
+      // If user had selected their own team's candidate, remove it from selection
+      if (chosenTeam && selectedPicks.includes(chosenTeam)) {
+        selectedPicks = selectedPicks.filter(item => item !== chosenTeam);
+      }
+      renderUI();
+    }
+
     function renderUI() {
       document.getElementById("pRoundTitle").textContent = state.round || "Round 1";
       const statusBadge = document.getElementById("pStatusBadge");
@@ -561,15 +591,26 @@
       });
       if (currentTeam) teamDropdown.value = currentTeam;
 
+      const myTeam = teamDropdown.value;
+
       // Render Option Cards
       const grid = document.getElementById("pOptionsGrid");
       grid.innerHTML = "";
       (state.options || defaultOptions).forEach(opt => {
+        const isSelf = (myTeam && opt.name === myTeam);
         const isSelected = selectedPicks.includes(opt.name);
+        
         const card = document.createElement("div");
-        card.className = `option-card ${isSelected ? 'selected' : ''}`;
+        card.className = `option-card ${isSelected ? 'selected' : ''} ${isSelf ? 'self-disabled' : ''}`;
         card.onclick = () => toggleSelectPick(opt.name);
         
+        if (isSelf) {
+          const selfBadge = document.createElement("span");
+          selfBadge.className = "self-tag";
+          selfBadge.textContent = "Your Team";
+          card.appendChild(selfBadge);
+        }
+
         const img = document.createElement("img");
         img.className = "option-thumb";
         img.src = opt.img || "villain1.png";
@@ -608,7 +649,7 @@
       }
 
       document.getElementById("pInstructionText").textContent = state.allowMultiple ? 
-        "Select one or more choices for this round:" : "Select your single choice for this round:";
+        "Select one or more choices for this round (excluding your own team):" : "Select your single choice for this round (excluding your own team):";
 
       // Timer countdown
       clearInterval(countdownInterval);
@@ -640,6 +681,13 @@
 
     function toggleSelectPick(name) {
       if (!state.isOpen || state.sessionEnded) return;
+
+      const myTeam = document.getElementById("voterTeamDropdown").value;
+      if (myTeam && name === myTeam) {
+        alert("You cannot vote for your own team!");
+        return;
+      }
+
       if (state.allowMultiple) {
         if (selectedPicks.includes(name)) {
           selectedPicks = selectedPicks.filter(item => item !== name);
@@ -662,10 +710,30 @@
       if (!name || !whatsapp || !team) {
         return alert("Please enter Name, WhatsApp number, and choose your Team from the dropdown!");
       }
-      if (selectedPicks.length === 0) {
-        return alert("Please select at least one option card before submitting!");
+
+      // Rule 2: Cannot vote for own team
+      if (selectedPicks.includes(team)) {
+        return alert("You cannot vote for your own team! Please deselect your team's candidate.");
       }
 
+      if (selectedPicks.length === 0) {
+        return alert("Please select at least one eligible option card before submitting!");
+      }
+
+      // Rule 1: Check duplicate WhatsApp AND duplicate Team in the active round
+      const currentRoundVotes = localVotes.filter(v => v.round === state.round);
+
+      const duplicateWhatsApp = currentRoundVotes.some(v => v.whatsapp === whatsapp);
+      if (duplicateWhatsApp) {
+        return alert("This WhatsApp number has already voted in this round!");
+      }
+
+      const duplicateTeam = currentRoundVotes.some(v => v.team === team);
+      if (duplicateTeam) {
+        return alert(`Team "${team}" has already cast its vote in this round! Only one vote per team is allowed.`);
+      }
+
+      // Record to Firestore
       db.collection("poll_votes").add({
         round: state.round,
         name: name,
@@ -682,13 +750,11 @@
       });
     }
 
-    // STRICT ACTUAL RESULTS ONLY (No random numbers)
     function renderOfficialResults() {
       const container = document.getElementById("officialResultsList");
       if (!container) return;
       container.innerHTML = "";
       
-      // Filter votes that match the current active round
       const roundVotes = localVotes.filter(v => v.round === state.round);
       const counts = {};
       (state.options || defaultOptions).forEach(o => counts[o.name] = 0);
@@ -722,12 +788,11 @@
       });
     }
 
-    // Isolated Telemetry Animation ONLY (Never touches official results)
     function initTelemetry() {
       const list = document.getElementById("telemetryBarsList");
       clearInterval(telemetryInterval);
       telemetryInterval = setInterval(() => {
-        if (state.isPublished) return; // Stop if official results are active
+        if (state.isPublished) return;
         list.innerHTML = "";
         (state.options || defaultOptions).forEach(o => {
           const rand = Math.floor(Math.random() * 70) + 15;
@@ -769,7 +834,6 @@
       });
     }
 
-    // Direct Database Purge: Deletes every single document in poll_votes
     async function purgeAllVotesFromFirestore() {
       try {
         const snap = await db.collection("poll_votes").get();
