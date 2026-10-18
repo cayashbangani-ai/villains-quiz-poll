@@ -391,7 +391,7 @@
           <button id="hPublishBtn" class="host-btn btn-gold" onclick="hostPublishResults()">📢 Publish Results</button>
           <button class="host-btn btn-dark" onclick="hostAdvanceRound()">⏩ Next Round</button>
           <button class="host-btn btn-blue" onclick="hostResetEntireSession()">🔄 Reset / New Game</button>
-          <button class="host-btn btn-red" style="margin-left: auto;" onclick="hostEndEntireSession()">⚠ End Session & Clear Log</button>
+          <button class="host-btn btn-red" style="margin-left: auto;" onclick="hostEndEntireSession()">⚠ End Session & Purge All</button>
         </div>
 
         <!-- Round Configurations -->
@@ -471,6 +471,7 @@
     ];
 
     let state = {
+      sessionId: "SESSION_" + Date.now(),
       round: "Round 1",
       isOpen: false,
       isPublished: false,
@@ -485,13 +486,16 @@
     let localVotes = [];
     let countdownInterval = null;
     let telemetryInterval = null;
-    let audioCtx = null;
-    let droneOsc = null;
 
     function startRealtimeSync() {
+      // 1. Listen to state
       db.collection("quiz_poll").doc("state").onSnapshot(doc => {
         if (doc.exists) {
           state = doc.data();
+          if (!state.sessionId) {
+            state.sessionId = "SESSION_" + Date.now();
+          }
+          filterAndRenderVotes();
           renderUI();
           if (!document.getElementById("hostDashboardBox").classList.contains("hidden")) {
             renderHostDashboard();
@@ -501,12 +505,25 @@
         }
       });
 
-      db.collection("quiz_poll").doc("data").collection("votes").orderBy("timestamp", "desc").onSnapshot(snapshot => {
-        localVotes = [];
-        snapshot.forEach(doc => localVotes.push(doc.data()));
-        renderAuditLogs();
-        renderOfficialResults();
+      // 2. Direct clean collection for votes
+      db.collection("poll_votes").onSnapshot(snapshot => {
+        const allDocs = [];
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          data._id = doc.id;
+          allDocs.push(data);
+        });
+        window._rawDbVotes = allDocs;
+        filterAndRenderVotes();
       });
+    }
+
+    // Filter strictly to current session: isolates past test answers immediately
+    function filterAndRenderVotes() {
+      if (!window._rawDbVotes) return;
+      localVotes = window._rawDbVotes.filter(v => v.sessionId === state.sessionId);
+      renderAuditLogs();
+      renderOfficialResults();
     }
 
     function switchPortal(portal) {
@@ -586,7 +603,6 @@
         statusText.textContent = "SESSION CONCLUDED";
         submitBtn.disabled = true;
         submitBtn.textContent = "SESSION CONCLUDED";
-        stopSuspenseSound();
         document.getElementById("pTimerText").textContent = "Timer: --";
         return;
       }
@@ -596,13 +612,11 @@
         statusText.textContent = "VOTING ACTIVE";
         submitBtn.disabled = false;
         submitBtn.textContent = "CAST OFFICIAL VOTE";
-        startSuspenseSound();
       } else {
         statusBadge.className = "status-badge status-closed";
         statusText.textContent = "VOTING CLOSED";
         submitBtn.disabled = true;
         submitBtn.textContent = "VOTING CLOSED";
-        stopSuspenseSound();
       }
 
       document.getElementById("pInstructionText").textContent = state.allowMultiple ? 
@@ -663,7 +677,8 @@
         return alert("Please select at least one option card before submitting!");
       }
 
-      db.collection("quiz_poll").doc("data").collection("votes").add({
+      db.collection("poll_votes").add({
+        sessionId: state.sessionId,
         round: state.round,
         name: name,
         whatsapp: whatsapp,
@@ -683,6 +698,7 @@
       const container = document.getElementById("officialResultsList");
       container.innerHTML = "";
       
+      // Strict: Only count votes from current round and current session
       const roundVotes = localVotes.filter(v => v.round === state.round);
       const counts = {};
       (state.options || defaultOptions).forEach(o => counts[o.name] = 0);
@@ -739,35 +755,6 @@
       }, 1000);
     }
 
-    function startSuspenseSound() {
-      if (audioCtx) return;
-      try {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        audioCtx = new AudioContext();
-        droneOsc = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-
-        droneOsc.type = 'sawtooth';
-        droneOsc.frequency.setValueAtTime(55, audioCtx.currentTime);
-        gainNode.gain.setValueAtTime(0.04, audioCtx.currentTime);
-
-        droneOsc.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-        droneOsc.start();
-      } catch(e) {}
-    }
-
-    function stopSuspenseSound() {
-      if (audioCtx) {
-        try {
-          droneOsc.stop();
-          audioCtx.close();
-        } catch(e) {}
-        audioCtx = null;
-        droneOsc = null;
-      }
-    }
-
     function renderHostDashboard() {
       document.getElementById("hRoundTitleInput").value = state.round || "Round 1";
       document.getElementById("hTimerInput").value = state.timerSeconds || 60;
@@ -790,21 +777,20 @@
       });
     }
 
-    // Helper: Purge all votes from Firestore database
-    async function purgeAllVotesFromDB() {
+    // Completely purges all past votes across the database and starts a new session key
+    async function purgeAllVotesAndNewSession() {
+      const newSessionId = "SESSION_" + Date.now();
       try {
-        const snapshot = await db.collection("quiz_poll").doc("data").collection("votes").get();
+        const snap = await db.collection("poll_votes").get();
         const batch = db.batch();
-        snapshot.docs.forEach(doc => {
-          batch.delete(doc.ref);
-        });
+        snap.docs.forEach(d => batch.delete(d.ref));
         await batch.commit();
-        localVotes = [];
-        renderAuditLogs();
-        renderOfficialResults();
       } catch (err) {
-        console.error("Error clearing votes:", err);
+        console.warn("Purge batch noticed:", err);
       }
+      localVotes = [];
+      window._rawDbVotes = [];
+      return newSessionId;
     }
 
     // Host Controls
@@ -815,19 +801,12 @@
       db.collection("quiz_poll").doc("state").set(state);
     }
 
-    // Closing or ending an individual round DOES NOT clear the audit log
-    function hostCloseRound() {
-      state.isOpen = false;
-      state.roundEndAt = null;
-      db.collection("quiz_poll").doc("state").set(state);
-    }
-
     function hostPublishResults() {
       state.isPublished = true;
       db.collection("quiz_poll").doc("state").set(state);
     }
 
-    // Advancing round leaves past rounds in the audit log
+    // Advancing round leaves past rounds in the audit log for the active session
     function hostAdvanceRound() {
       const match = (state.round || "").match(/\d+/);
       const nextNum = match ? parseInt(match[0]) + 1 : 2;
@@ -838,27 +817,31 @@
       db.collection("quiz_poll").doc("state").set(state);
     }
 
-    // Resetting session washes out the database and resets to Round 1
+    // Resetting session completely wipes database and assigns brand new session
     async function hostResetEntireSession() {
-      if (confirm("Reset to Round 1 and WASH OUT all votes from the audit log?")) {
-        await purgeAllVotesFromDB();
+      if (confirm("Reset to Round 1 and COMPLETELY PURGE all prior votes?")) {
+        const freshId = await purgeAllVotesAndNewSession();
+        state.sessionId = freshId;
         state.round = "Round 1";
         state.isOpen = false;
         state.isPublished = false;
         state.sessionEnded = false;
         await db.collection("quiz_poll").doc("state").set(state);
-        alert("Session reset! The audit log has been washed clean.");
+        filterAndRenderVotes();
+        alert("Session refreshed! Audit log and results have been completely purged.");
       }
     }
 
-    // Ending entire session washes out the database audit log
+    // Ending session wipes database and locks voting
     async function hostEndEntireSession() {
-      if (confirm("End entire session and WASH OUT the audit log? All participant votes will be purged.")) {
-        await purgeAllVotesFromDB();
+      if (confirm("End entire session and PURGE ALL votes?")) {
+        const freshId = await purgeAllVotesAndNewSession();
+        state.sessionId = freshId;
         state.isOpen = false;
         state.sessionEnded = true;
         await db.collection("quiz_poll").doc("state").set(state);
-        alert("Session ended! The audit log has been washed out.");
+        filterAndRenderVotes();
+        alert("Session ended and all logs purged clean.");
       }
     }
 
